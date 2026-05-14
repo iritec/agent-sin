@@ -102,6 +102,7 @@ import {
   skillsLines,
 } from "../core/info-lines.js";
 import { inferLocaleFromText, l, lLines, t, withLocale } from "../core/i18n.js";
+import { agentSinVersion, agentSinVersionFresh } from "../core/version.js";
 import {
   appendHistory,
   chatRespond,
@@ -1679,7 +1680,7 @@ function formatAssistantNarrative(text: string): string {
     .join("\n");
 }
 
-const AGENT_SIN_VERSION = "0.1.0";
+const AGENT_SIN_VERSION = agentSinVersion();
 
 type CliBuildHooks = BuildModeHandlerOptions & { finish(): void };
 
@@ -2749,6 +2750,22 @@ macOS で常駐させるには agent-sin service install を使ってくださ�
       }, ${startTelegram ? "telegram 有効" : "telegram 無効"})`,
     ),
   );
+  const startupVersion = agentSinVersionFresh();
+  const versionCheckInterval = setInterval(() => {
+    const current = agentSinVersionFresh();
+    if (current !== startupVersion && current !== "unknown") {
+      console.log(
+        l(
+          `agent-sin gateway: detected upgrade ${startupVersion} -> ${current}, exiting so launchd restarts with the new code.`,
+          `agent-sin gateway: アップデートを検知 (${startupVersion} -> ${current}). launchd が新しいコードで再起動できるように終了します。`,
+        ),
+      );
+      clearInterval(versionCheckInterval);
+      process.exit(0);
+    }
+  }, 5 * 60 * 1000);
+  versionCheckInterval.unref?.();
+
   const tasks: Array<Promise<number>> = [];
   if (startScheduler) {
     tasks.push(runScheduleDaemon(config, { once: Boolean(options.once) }));
@@ -2764,6 +2781,7 @@ macOS で常駐させるには agent-sin service install を使ってくださ�
     console.log(l("agent-sin gateway: Telegram not configured.", "agent-sin gateway: Telegram は未設定です。"));
   }
   const results = await Promise.all(tasks);
+  clearInterval(versionCheckInterval);
   return Math.max(...results);
 }
 

@@ -15,6 +15,18 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.3] — 2026-05-14
+
+### Added
+
+- The long-running `agent-sin gateway` (the launchd / Task Scheduler service) now self-detects upgrades. Every 5 minutes it re-reads its own `package.json` version, and if it differs from the version it started with, it exits gracefully so launchd / Task Scheduler restarts it on the new code. This means `npm i -g agent-sin@latest` is enough — no manual `service restart` is required.
+
+### Fixed
+
+- The CLI banner used to print a hard-coded `v0.1.0` because the version string was inlined. It now reads `package.json` at runtime, so the displayed version always matches the installed one.
+
+---
+
 ## [0.1.2] — 2026-05-14
 
 ### Fixed
