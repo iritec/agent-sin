@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://agent.shingoirie.com">Website</a> ·
-  <a href="https://agent.shingoirie.com/overview">Docs</a> ·
-  <a href="https://agent.shingoirie.com/getting-started">Quick Start</a>
+  <a href="https://agent.shingoirie.com?lang=en">Website</a> ·
+  <a href="https://agent.shingoirie.com/overview?lang=en">Docs</a> ·
+  <a href="https://agent.shingoirie.com/getting-started?lang=en">Quick Start</a>
 </p>
 
 ---
@@ -60,20 +60,20 @@ irm https://agent.shingoirie.com/install.ps1 | iex
 
 The installer sets up `agent-sin`, runs initial setup, and registers a login service. Workspace data lives in `~/.agent-sin/`.
 
-Full walkthrough: [Getting Started](https://agent.shingoirie.com/getting-started).
+Full walkthrough: [Getting Started](https://agent.shingoirie.com/getting-started?lang=en).
 
 ## Documentation
 
-- [Overview](https://agent.shingoirie.com/overview) — the big picture
-- [Getting Started](https://agent.shingoirie.com/getting-started) — install to first conversation
-- [Concepts](https://agent.shingoirie.com/concepts) — design and Runtime
-- [Skill Authoring](https://agent.shingoirie.com/skill-authoring) — write your own skill
-- [Built-in Skills](https://agent.shingoirie.com/built-in-skills) — bundled skills
-- [CLI Reference](https://agent.shingoirie.com/cli) — every command
-- [Configuration](https://agent.shingoirie.com/configuration) — settings and API keys
-- [Gateway & Ops](https://agent.shingoirie.com/operations) — always-on, schedules, notifications, backup
-- [Discord](https://agent.shingoirie.com/discord) · [Telegram](https://agent.shingoirie.com/telegram) — channel integrations
-- [Versioning](https://agent.shingoirie.com/versioning) — compatibility and release policy
+- [Overview](https://agent.shingoirie.com/overview?lang=en) — the big picture
+- [Getting Started](https://agent.shingoirie.com/getting-started?lang=en) — install to first conversation
+- [Concepts](https://agent.shingoirie.com/concepts?lang=en) — design and Runtime
+- [Skill Authoring](https://agent.shingoirie.com/skill-authoring?lang=en) — write your own skill
+- [Built-in Skills](https://agent.shingoirie.com/built-in-skills?lang=en) — bundled skills
+- [CLI Reference](https://agent.shingoirie.com/cli?lang=en) — every command
+- [Configuration](https://agent.shingoirie.com/configuration?lang=en) — settings and API keys
+- [Gateway & Ops](https://agent.shingoirie.com/operations?lang=en) — always-on, schedules, notifications, backup
+- [Discord](https://agent.shingoirie.com/discord?lang=en) · [Telegram](https://agent.shingoirie.com/telegram?lang=en) — channel integrations
+- [Versioning](https://agent.shingoirie.com/versioning?lang=en) — compatibility and release policy
 - [Changelog](CHANGELOG.md) — release history
 
 ## Also by the author
