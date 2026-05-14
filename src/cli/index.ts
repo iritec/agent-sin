@@ -483,6 +483,12 @@ async function cmdRun(args: string[]): Promise<number> {
 async function cmdChat(args: string[]): Promise<number> {
   const config = await loadConfig();
   scheduleUpdateCheck(config.workspace);
+  // Interactive CLI: always check the registry on startup so the user sees
+  // any new release immediately, not on the next session.
+  const startupBanner = await consumeUpdateBanner(config.workspace, { force: true });
+  if (startupBanner) {
+    console.log(startupBanner);
+  }
   const history: ChatTurn[] = [];
   if (args.length > 0) {
     const lines = await handleChatMessage(config, args.join(" "), history);

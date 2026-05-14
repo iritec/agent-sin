@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.5] — 2026-05-14
+
+### Changed
+
+- The interactive CLI (`agent-sin start` / `agent-sin chat`) now hits the npm registry on every startup instead of trusting the 24-hour cache, so new releases are surfaced immediately. Background paths (gateway, mid-conversation polls) still use the cache.
+
+---
+
 ## [0.1.4] — 2026-05-14
 
 ### Added

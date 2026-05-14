@@ -147,14 +147,15 @@ export function scheduleUpdateCheck(workspace: string = defaultWorkspace()): voi
 
 export async function consumeUpdateBanner(
   workspace: string = defaultWorkspace(),
+  options: { force?: boolean } = {},
 ): Promise<string | null> {
   if (isDisabled()) return null;
   let cache = await loadCache(workspace);
   const current = await readCurrentVersion();
-  // If the cache is stale (missing or trailing installed version), fetch
-  // synchronously with a short timeout so the user sees the banner on the
-  // first run after publishing a new version.
-  if (isCacheStale(cache, current)) {
+  // Interactive entry points pass force=true to always fetch the latest
+  // version on startup; background paths (services, mid-conversation polls)
+  // fall back to the cache to avoid hammering the registry.
+  if (options.force || isCacheStale(cache, current)) {
     const latest = await fetchLatestVersion();
     if (latest) {
       cache = {
