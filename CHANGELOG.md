@@ -15,6 +15,15 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.2] — 2026-05-14
+
+### Fixed
+
+- `agent-sin setup` no longer writes `defaults.locale` into `config.toml`. The locale is now resolved fresh on every run from `AGENT_SIN_LOCALE` or the OS-level Intl locale. This prevents a stale `locale = "ja"` from being pinned at first setup (for example via `curl ... install.sh | bash` on a Mac whose shell still inherits `LANG=ja_JP.UTF-8`) and surviving subsequent re-installs.
+  - Existing workspaces with the wrong locale: remove the `locale` line from `~/.agent-sin/config.toml`, or run with `AGENT_SIN_LOCALE=en`. `sed -i '' '/^locale = /d' ~/.agent-sin/config.toml` works on macOS.
+
+---
+
 ## [0.1.1] — 2026-05-14
 
 ### Fixed

@@ -220,31 +220,13 @@ export function defaultConfig(workspace = defaultWorkspace()): AppConfig {
     event_log_retention_days: 90,
     defaults: {
       note_format: "daily_markdown",
-      locale: detectInstallLocale(),
+      // locale is intentionally not persisted: every run detects it fresh from
+      // AGENT_SIN_LOCALE / Intl, so users who switch their OS language never
+      // get stuck with a stale ja/en pinned at first setup.
     },
     chat_model_id: "codex-low",
     builder_model_id: "codex-xhigh",
   };
-}
-
-function detectInstallLocale(): Locale | undefined {
-  const explicit = (process.env.AGENT_SIN_LOCALE || "").trim().toLowerCase();
-  if (explicit === "ja" || explicit === "en") return explicit;
-  // Prefer the OS-level locale (Intl) over shell LANG: when a user switches the
-  // macOS system language, the shell's LANG often keeps its old value, which
-  // would otherwise persist a stale ja locale into config.toml.
-  try {
-    const intlLocale = (Intl.DateTimeFormat().resolvedOptions().locale || "").toLowerCase();
-    if (/^ja(-|$)/.test(intlLocale)) return "ja";
-    if (/^en(-|$)/.test(intlLocale)) return "en";
-  } catch {
-    // ignored
-  }
-  const lang = (process.env.LC_ALL || process.env.LANG || "").trim();
-  if (lang) {
-    return /^ja(_|$|-)/i.test(lang) ? "ja" : "en";
-  }
-  return undefined;
 }
 
 export function defaultModels(): ModelConfig {
