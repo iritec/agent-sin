@@ -1,48 +1,33 @@
-## CHANGELOG
+## Changelog
 
-agent-sin のリリース履歴。形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) ベース、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従う。
+Release history of `agent-sin`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-エントリ種別:
+Entry types:
 
-- **Added** — 新機能
-- **Changed** — 既存挙動の変更（互換維持）
-- **Deprecated** — 廃止予定（次メジャーで削除）
-- **Removed** — 削除（破壊的変更）
-- **Fixed** — バグ修正
-- **Security** — セキュリティ修正
+- **Added** — new features
+- **Changed** — changes to existing behavior (backwards-compatible)
+- **Deprecated** — features to be removed in the next major release
+- **Removed** — breaking changes
+- **Fixed** — bug fixes
+- **Security** — security fixes
 
-互換性ポリシーは [公式ドキュメント](https://agent.shingoirie.com/versioning) を参照。
+See the [compatibility policy](https://agent.shingoirie.com/versioning) for details.
 
 ---
 
-## [Unreleased]
+## [0.1.0] — 2026-05-14
 
 ### Added
 
-- Telegram bot 連携（`src/telegram/`）。Discord と同じ chat / build / intent ルーティングを Telegram でも利用可能に。
-- Discord 添付ファイル取り込み（テキスト/画像）と、ビルド進捗の detail モード。
-- profile memory（`soul.md` / `user.md` / `memory.md`）と日次メモの自動昇格（`daily-memory-promotion`）。
-- `profile-save` ビルトインスキル。
-- `install.sh` によるセットアップ補助。
-- 互換性ポリシー（[versioning](https://agent.shingoirie.com/versioning)）と CHANGELOG。
+- Initial public release. `agent-sin` CLI, skill runtimes (Python / TypeScript), Discord bot, Builder mode, built-in skills, Codex / OpenAI / Gemini / Claude Code provider integrations, and the local memory / index / scheduler foundation.
+- Telegram bot integration (`src/telegram/`). The same chat / build / intent routing used by Discord is now available on Telegram.
+- Discord attachment ingestion (text / images) and a detail mode for build progress.
+- Profile memory (`soul.md` / `user.md` / `memory.md`) with automatic promotion of daily notes (`daily-memory-promotion`).
+- `profile-save` built-in skill.
+- `install.sh` for one-shot setup.
+- Compatibility policy ([versioning](https://agent.shingoirie.com/versioning)) and this changelog.
 
 ### Changed
 
-- ビルドモード進入時の固定文言「作業を開始しました」を廃止し、detail モード以外は進捗メッセージを送らない静かな挙動に変更。
-- Discord/Telegram のビルド進捗は `AGENT_SIN_DISCORD_PROGRESS_DETAIL=1` / `AGENT_SIN_TELEGRAM_PROGRESS_DETAIL=1` または runtime 設定の `progress_detail=true` でのみ詳細表示。
-
-### Deprecated
-
-- なし
-
-### Removed
-
-- なし
-
----
-
-## [0.1.0] — 2026-04-26
-
-### Added
-
-- 初回リリース。`agent-sin` CLI、スキル ランタイム（Python / TypeScript）、Discord bot、Builder モード、ビルトインスキル、Codex / OpenAI / Gemini / Claude Code プロバイダ統合、ローカルメモリ／インデックス／スケジューラの基盤。
+- Removed the fixed "started working" announcement when entering build mode. Outside detail mode, no progress message is sent — the agent stays quiet.
+- Build progress on Discord / Telegram is shown in detail only when `AGENT_SIN_DISCORD_PROGRESS_DETAIL=1` / `AGENT_SIN_TELEGRAM_PROGRESS_DETAIL=1` is set, or `progress_detail=true` is configured in the runtime settings.
