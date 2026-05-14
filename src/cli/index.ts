@@ -1579,9 +1579,10 @@ function renderStartupBanner(state: ChatState): string[] {
 
   const modelDisplay = resolveDisplayModel(state);
 
-  if (ctx.ascii) {
+  if (ctx.ascii || process.platform === "win32") {
     return [
       "",
+      `  ${accent("AGENT-SIN")}`,
       `  ${bold("agent-sin")}  ${dim("v" + AGENT_SIN_VERSION)}  ${dot}  ${dim("model:")} ${modelDisplay}`,
       `  ${dim("/help · /reset · /exit")}`,
       "",
