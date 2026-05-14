@@ -230,16 +230,19 @@ export function defaultConfig(workspace = defaultWorkspace()): AppConfig {
 function detectInstallLocale(): Locale | undefined {
   const explicit = (process.env.AGENT_SIN_LOCALE || "").trim().toLowerCase();
   if (explicit === "ja" || explicit === "en") return explicit;
-  const lang = (process.env.LC_ALL || process.env.LANG || "").trim();
-  if (lang) {
-    return /^ja(_|$|-)/i.test(lang) ? "ja" : "en";
-  }
+  // Prefer the OS-level locale (Intl) over shell LANG: when a user switches the
+  // macOS system language, the shell's LANG often keeps its old value, which
+  // would otherwise persist a stale ja locale into config.toml.
   try {
     const intlLocale = (Intl.DateTimeFormat().resolvedOptions().locale || "").toLowerCase();
     if (/^ja(-|$)/.test(intlLocale)) return "ja";
     if (/^en(-|$)/.test(intlLocale)) return "en";
   } catch {
     // ignored
+  }
+  const lang = (process.env.LC_ALL || process.env.LANG || "").trim();
+  if (lang) {
+    return /^ja(_|$|-)/i.test(lang) ? "ja" : "en";
   }
   return undefined;
 }

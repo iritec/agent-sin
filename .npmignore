@@ -2,6 +2,8 @@
 **/*.pyc
 
 node_modules/
+/.dist-build/
+/.dist-previous/
 dist/**/*.map
 .local/
 .agent-sin/
@@ -11,5 +13,6 @@ logs/
 .env
 .env.*
 .DS_Store
+.codex/
 .vscode/
 .idea/

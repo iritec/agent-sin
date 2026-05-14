@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+.dist-build/
+.dist-previous/
 
 # Local runtime data
 .local/
@@ -21,6 +23,7 @@ npm-debug.log*
 
 # OS/editor files
 .DS_Store
+.codex/
 .vscode/
 .idea/
 

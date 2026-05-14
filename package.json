@@ -25,14 +25,14 @@
     "install.ps1",
     "builtin-skills/",
     "templates/",
-    "scripts/",
     "!builtin-skills/**/__pycache__",
     "!builtin-skills/**/*.pyc",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/chmod-bin.mjs",
+    "build": "node scripts/build-dist.mjs",
     "setup": "npm ci --include=dev && npm run build && node scripts/local-cli.mjs setup",
     "setup:global": "npm ci --include=dev && npm run build && npm link && agent-sin setup && agent-sin service install",
     "start": "npm run build && node scripts/local-cli.mjs chat",

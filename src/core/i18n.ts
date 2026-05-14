@@ -9,9 +9,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
  *   1. AGENT_SIN_LOCALE env var (explicit override)
  *   2. Per-turn locale inferred from the current user message
  *   3. Configured locale via setLocale()
- *   4. LC_ALL or LANG starting with `ja` → `ja` (Unix shells)
- *   5. Intl.DateTimeFormat().resolvedOptions().locale starting with `ja`
- *      → `ja` (cross-platform OS locale, including Windows where step 2 is empty)
+ *   4. Intl.DateTimeFormat().resolvedOptions().locale (OS-level system locale)
+ *   5. LC_ALL or LANG (Unix shell locale, only consulted when Intl is unset)
  *   6. Default: `en`
  */
 
@@ -82,23 +81,26 @@ export function detectLocale(): Locale {
   if (active) {
     return active;
   }
-  // Respect an explicitly-set Unix shell locale even when it is not Japanese
-  // (a user who typed `export LANG=en_US.UTF-8` wants English).
-  const lang = (process.env.LC_ALL || process.env.LANG || "").trim();
-  if (lang) {
-    active = /^ja(_|$|-)/i.test(lang) ? "ja" : "en";
-    return active;
-  }
-  // No shell-level locale set (typical on Windows or stripped-down envs):
-  // fall back to the OS-reported locale via the Intl API.
+  // Prefer the OS-reported locale via the Intl API. The shell's LANG often
+  // carries stale values when users switch their macOS system language, which
+  // would otherwise force ja when the user has already moved to English.
   try {
     const intlLocale = (Intl.DateTimeFormat().resolvedOptions().locale || "").toLowerCase();
     if (/^ja(-|$)/.test(intlLocale)) {
       active = "ja";
       return active;
     }
+    if (/^en(-|$)/.test(intlLocale)) {
+      active = "en";
+      return active;
+    }
   } catch {
-    // Intl API can fail in stripped-down builds; fall through to default.
+    // Intl API can fail in stripped-down builds; fall through to LANG.
+  }
+  const lang = (process.env.LC_ALL || process.env.LANG || "").trim();
+  if (lang) {
+    active = /^ja(_|$|-)/i.test(lang) ? "ja" : "en";
+    return active;
   }
   active = "en";
   return active;
