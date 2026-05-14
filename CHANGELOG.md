@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.9] — 2026-05-14
+
+### Fixed
+
+- The `.env` permission warning ("permissions 666 ... are too open; recommend: chmod 600") no longer fires on Windows. POSIX-style mode bits are not meaningful on Windows (every file reports 0o666), so the check is skipped there.
+
+---
+
 ## [0.1.8] — 2026-05-14
 
 ### Fixed

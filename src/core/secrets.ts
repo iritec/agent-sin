@@ -43,14 +43,19 @@ export async function loadDotenv(workspace = defaultWorkspace()): Promise<Dotenv
   }
 
   let permissionWarning: string | undefined;
-  try {
-    const info = await stat(file);
-    const mode = info.mode & 0o777;
-    if ((mode & 0o077) !== 0) {
-      permissionWarning = `permissions ${mode.toString(8).padStart(3, "0")} on ${file} are too open; recommend: chmod 600 ${file}`;
+  // POSIX-style mode bits do not have meaningful semantics on Windows, where
+  // every file reports 0o666 by default. Skip the check there to avoid a
+  // false-positive warning on every CLI start.
+  if (process.platform !== "win32") {
+    try {
+      const info = await stat(file);
+      const mode = info.mode & 0o777;
+      if ((mode & 0o077) !== 0) {
+        permissionWarning = `permissions ${mode.toString(8).padStart(3, "0")} on ${file} are too open; recommend: chmod 600 ${file}`;
+      }
+    } catch {
+      // Ignore stat failures; the file was readable above.
     }
-  } catch {
-    // Ignore stat failures; the file was readable above.
   }
 
   let varsSet = 0;
