@@ -18,7 +18,6 @@ import {
   routeConversationMessage,
   type BuildProgressReporter,
 } from "../builder/conversation-router.js";
-import { isBuildCommandText, runBuildCommandText } from "../builder/build-command-router.js";
 import { formatBuildProgress, progressIntervalMs } from "../builder/progress-format.js";
 import {
   chunkText,
@@ -1151,8 +1150,6 @@ async function routeDiscordMessage(
     intentRuntime,
     eventSource: "discord",
     images,
-    isBuildCommand: (value) => isBuildCommandText(value, ["!"]),
-    runBuildCommand: (value, hooks) => runBuildCommand(state.config, value, hooks),
     createBuildProgress: () => createDiscordBuildProgressReporter(state, replyChannelId, status),
     onBuildStart: () => status.set("tool"),
     onBuildDone: () => status.set("done"),
@@ -1348,14 +1345,6 @@ function startTypingKeepalive(state: BotState, channelId: string): TypingHandle 
       }
     },
   };
-}
-
-async function runBuildCommand(
-  config: AppConfig,
-  text: string,
-  hooks: { onProgress?: AiProgressHandler } = {},
-): Promise<string[]> {
-  return runBuildCommandText(config, text, { displayPrefix: "!", onProgress: hooks.onProgress });
 }
 
 export type TodoSlashParse =

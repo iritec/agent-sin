@@ -26,8 +26,6 @@ export interface RouteConversationMessageOptions {
   intentRuntime: IntentRuntime;
   eventSource: "discord" | "telegram";
   images?: AiImagePart[];
-  isBuildCommand(text: string): boolean;
-  runBuildCommand(text: string, hooks: { onProgress?: AiProgressHandler }): Promise<string[]>;
   createBuildProgress(): BuildProgressReporter;
   onBuildStart?(): Promise<void>;
   onBuildDone?(): Promise<void>;
@@ -87,17 +85,6 @@ export async function routeConversationMessage(
       return [l("OK. Continuing in chat.", "わかりました。チャットを続けます。")];
     }
     // "discuss" → keep pending, fall through to chatRespond.
-  }
-
-  if (options.isBuildCommand(text)) {
-    await options.onBuildStart?.();
-    const buildProgress = options.createBuildProgress();
-    const lines = await options.runBuildCommand(text, {
-      onProgress: buildProgress.onProgress,
-    });
-    await buildProgress.flush();
-    await options.onBuildDone?.();
-    return lines;
   }
 
   let modelFailed = false;

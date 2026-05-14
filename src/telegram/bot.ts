@@ -17,7 +17,6 @@ import {
   routeConversationMessage,
   type BuildProgressReporter,
 } from "../builder/conversation-router.js";
-import { isBuildCommandText, runBuildCommandText } from "../builder/build-command-router.js";
 import { cleanProgressText, formatBuildProgress, progressIntervalMs } from "../builder/progress-format.js";
 import {
   chunkText,
@@ -619,8 +618,6 @@ async function routeTelegramMessage(
     intentRuntime,
     eventSource: "telegram",
     images,
-    isBuildCommand,
-    runBuildCommand: (value, hooks) => runBuildCommand(state.config, value, hooks),
     createBuildProgress: () =>
       createTelegramBuildProgressReporter(state, chatKey, chatId, threadId, replyToMessageId, draft),
     onChatProgress: (event) => draft.onChatProgress(event),
@@ -723,18 +720,6 @@ function withTelegramModeBadge(
   });
   if (!footer) return lines;
   return [...lines, "", footer];
-}
-
-function isBuildCommand(text: string): boolean {
-  return isBuildCommandText(text, ["!", "/"]);
-}
-
-async function runBuildCommand(
-  config: AppConfig,
-  text: string,
-  hooks: { onProgress?: AiProgressHandler } = {},
-): Promise<string[]> {
-  return runBuildCommandText(config, text, { displayPrefix: "/", onProgress: hooks.onProgress });
 }
 
 function handleProgressCommand(state: TelegramBotState, chatKey: string, text: string): string[] | null {
