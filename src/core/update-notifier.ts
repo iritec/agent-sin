@@ -95,8 +95,8 @@ function fetchLatestVersion(): Promise<string | null> {
 }
 
 function compareSemver(a: string, b: string): number {
-  const pa = a.split(/[.+-]/)[0].split(".").map((s) => parseInt(s, 10) || 0);
-  const pb = b.split(/[.+-]/)[0].split(".").map((s) => parseInt(s, 10) || 0);
+  const pa = a.split(/[+-]/)[0].split(".").map((s) => parseInt(s, 10) || 0);
+  const pb = b.split(/[+-]/)[0].split(".").map((s) => parseInt(s, 10) || 0);
   const len = Math.max(pa.length, pb.length);
   for (let i = 0; i < len; i += 1) {
     const av = pa[i] ?? 0;
