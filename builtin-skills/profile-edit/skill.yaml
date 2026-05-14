@@ -1,0 +1,72 @@
+# Builtin: profile-edit
+# soul.md / user.md / memory.md の既存エントリを書き換える。
+
+id: profile-edit
+name: Profile Edit
+name_i18n:
+  en: Profile Edit
+  ja: プロフィール編集
+description: 長期プロフィールの既存エントリを編集する
+description_i18n:
+  en: Edit an existing long-term profile entry
+  ja: 長期プロフィールの既存エントリを編集する
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: profile.edit
+  phrases:
+    - プロフィールを修正
+    - soul.mdを編集
+    - user.mdを編集
+    - memory.mdを編集
+    - 長期メモを直して
+  phrases_i18n:
+    en:
+      - edit profile
+      - edit soul.md
+      - edit user.md
+      - edit memory.md
+      - fix long-term memory
+    ja:
+      - プロフィールを修正
+      - soul.mdを編集
+      - user.mdを編集
+      - memory.mdを編集
+      - 長期メモを直して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      target:
+        type: string
+        enum:
+          - soul
+          - user
+          - memory
+      index:
+        type: integer
+        minimum: 1
+        description: 上から数えた1始まりのエントリ番号
+        description_i18n:
+          en: 1-based entry number counted from the top
+          ja: 上から数えた1始まりのエントリ番号
+      timestamp:
+        type: string
+        description: エントリの '## <timestamp>' ヘッダ値で特定する場合に指定
+        description_i18n:
+          en: Use the entry's '## <timestamp>' header value to identify it
+          ja: エントリの '## <timestamp>' ヘッダ値で特定する場合に指定
+      text:
+        type: string
+        minLength: 1
+        description: 置き換える本文
+        description_i18n:
+          en: Replacement text
+          ja: 置き換える本文
+    required:
+      - target
+      - text

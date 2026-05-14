@@ -1,0 +1,15 @@
+**/__pycache__/
+**/*.pyc
+
+node_modules/
+dist/**/*.map
+.local/
+.agent-sin/
+.agent-sin-*/
+logs/
+*.log
+.env
+.env.*
+.DS_Store
+.vscode/
+.idea/

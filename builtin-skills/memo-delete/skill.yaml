@@ -1,0 +1,57 @@
+# Builtin: memo-delete
+# デイリーノートの memo 行を削除する。memo-save と対称。
+
+id: memo-delete
+name: Memo Delete
+name_i18n:
+  en: Memo Delete
+  ja: メモ削除
+description: メモの行を削除する
+description_i18n:
+  en: Delete a memo line from the daily note
+  ja: メモの行を削除する
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: memo.delete
+  phrases:
+    - メモを消して
+    - メモ削除
+    - さっきのメモを消して
+  phrases_i18n:
+    en:
+      - delete memo
+      - remove that memo
+      - delete the previous memo
+    ja:
+      - メモを消して
+      - メモ削除
+      - さっきのメモを消して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      date:
+        type: string
+        description: "対象日 (YYYY-MM-DD)。省略時は今日"
+        description_i18n:
+          en: "Target date (YYYY-MM-DD). Defaults to today"
+          ja: "対象日 (YYYY-MM-DD)。省略時は今日"
+      match:
+        type: string
+        minLength: 1
+        description: メモ行に含まれる文字列で特定する
+        description_i18n:
+          en: Text contained in the memo line to identify
+          ja: メモ行に含まれる文字列で特定する
+      index:
+        type: integer
+        minimum: 1
+        description: 該当日メモ行の1始まり番号で特定する
+        description_i18n:
+          en: 1-based memo line number for the target day
+          ja: 該当日メモ行の1始まり番号で特定する

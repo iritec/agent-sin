@@ -1,0 +1,45 @@
+# Builtin: schedule-list
+# ~/.agent-sin/schedules.yaml に登録されているスケジュールを一覧表示する。
+
+id: schedule-list
+name: Schedule List
+name_i18n:
+  en: Schedule List
+  ja: スケジュール一覧
+description: 登録済みの定期実行(スケジュール)を一覧表示する
+description_i18n:
+  en: List registered recurring schedules
+  ja: 登録済みの定期実行(スケジュール)を一覧表示する
+runtime: python
+output_mode: raw
+
+invocation:
+  command: schedule.list
+  phrases:
+    - スケジュールを見せて
+    - 定期実行の一覧
+    - 登録済みのcron
+    - スケジュール確認
+  phrases_i18n:
+    en:
+      - show schedules
+      - list recurring tasks
+      - list cron jobs
+      - check schedules
+    ja:
+      - スケジュールを見せて
+      - 定期実行の一覧
+      - 登録済みのcron
+      - スケジュール確認
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      include_disabled:
+        type: boolean
+        description: 無効化されたスケジュールも含めるか (default true)
+        description_i18n:
+          en: Include disabled schedules (default true)
+          ja: 無効化されたスケジュールも含めるか (default true)

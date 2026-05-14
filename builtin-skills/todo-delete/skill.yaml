@@ -1,0 +1,47 @@
+# Builtin: todo-delete
+# 指定したToDoを削除する。
+
+id: todo-delete
+name: ToDo Delete
+name_i18n:
+  en: ToDo Delete
+  ja: ToDo削除
+description: ToDoを削除する
+description_i18n:
+  en: Delete a ToDo item
+  ja: ToDoを削除する
+runtime: python
+output_mode: raw  # スキル結果をそのままユーザーに返し、LLM 再整形ターンを挟まない
+side_effect: true
+
+invocation:
+  command: todo.delete
+  phrases:
+    - todo削除
+    - 削除
+    - 消して
+  phrases_i18n:
+    en:
+      - delete todo
+      - remove task
+      - delete task
+    ja:
+      - todo削除
+      - 削除
+      - 消して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+    required:
+      - id
+
+memory:
+  namespace: todo
+  read: true
+  write: true

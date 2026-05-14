@@ -1,0 +1,51 @@
+# Builtin: memo-search
+# notes_dir 配下の Markdown を全文 grep する読み取り専用スキル。
+# memory namespace は memo (memo-save と共有) だが write=false で読み出しのみ。
+
+id: memo-search
+name: Memo Search
+name_i18n:
+  en: Memo Search
+  ja: メモ検索
+description: 保存済みMarkdownメモをキーワード検索する
+description_i18n:
+  en: Search saved Markdown memos by keyword
+  ja: 保存済みMarkdownメモをキーワード検索する
+runtime: python
+
+invocation:
+  command: memo.search
+  phrases:
+    - メモ検索
+    - メモを検索して
+    - 検索して
+  phrases_i18n:
+    en:
+      - search memos
+      - search my notes
+      - find a memo
+    ja:
+      - メモ検索
+      - メモを検索して
+      - 検索して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      query:
+        type: string
+        minLength: 1
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 10
+    required:
+      - query
+
+memory:
+  namespace: memo
+  read: true
+  write: false

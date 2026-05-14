@@ -1,0 +1,94 @@
+# Builtin: schedule-add
+# ~/.agent-sin/schedules.yaml にスケジュールを1件追加する。
+
+id: schedule-add
+name: Schedule Add
+name_i18n:
+  en: Schedule Add
+  ja: スケジュール追加
+description: 定期実行(cron)スケジュールを1件追加する
+description_i18n:
+  en: Add one recurring cron schedule
+  ja: 定期実行(cron)スケジュールを1件追加する
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: schedule.add
+  phrases:
+    - スケジュール追加
+    - 定期実行を追加
+    - cronを追加
+    - 毎日X時に動かして
+    - 毎時X分に動かして
+  phrases_i18n:
+    en:
+      - add schedule
+      - add recurring task
+      - add cron
+      - run this every day
+      - run this every hour
+    ja:
+      - スケジュール追加
+      - 定期実行を追加
+      - cronを追加
+      - 毎日X時に動かして
+      - 毎時X分に動かして
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        pattern: "^[A-Za-z0-9_-]+$"
+        description: スケジュールの一意ID
+        description_i18n:
+          en: Unique schedule ID
+          ja: スケジュールの一意ID
+      cron:
+        type: string
+        minLength: 1
+        description: 5フィールドのcron式 "min hour dom month dow"
+        description_i18n:
+          en: 5-field cron expression, "min hour dom month dow"
+          ja: 5フィールドのcron式 "min hour dom month dow"
+      skill:
+        type: string
+        minLength: 1
+        description: 実行するスキルID
+        description_i18n:
+          en: Skill ID to run
+          ja: 実行するスキルID
+      args:
+        type: object
+        additionalProperties: true
+        description: スキルに渡す引数(任意)
+        description_i18n:
+          en: Optional arguments passed to the skill
+          ja: スキルに渡す引数(任意)
+      description:
+        type: string
+        description: スケジュールの説明文(任意)
+        description_i18n:
+          en: Optional schedule description
+          ja: スケジュールの説明文(任意)
+      enabled:
+        type: boolean
+        description: 有効/無効 (default true)
+        description_i18n:
+          en: Enabled or disabled (default true)
+          ja: 有効/無効 (default true)
+      approve:
+        type: boolean
+        description: approve required フラグ (default false)
+        description_i18n:
+          en: Approval required flag (default false)
+          ja: approve required フラグ (default false)
+    required:
+      - id
+      - cron
+      - skill

@@ -1,0 +1,69 @@
+# Builtin: model-set
+# models.yaml.roles の chat / builder を既存のモデルIDに付け替える。
+
+id: model-set
+name: Model Set
+name_i18n:
+  en: Model Set
+  ja: モデル切替
+description: >-
+  chat または builder のロールに、models.yaml に登録済みのモデルIDを割り当てる。
+  まだ登録されていないモデルを使いたい場合は model-add を先に呼ぶこと。
+description_i18n:
+  en: >-
+    Assign an already-registered model ID to the chat or builder role.
+    For a not-yet-registered provider, call model-add first.
+  ja: >-
+    chat または builder のロールに、models.yaml に登録済みのモデルIDを割り当てる。
+    まだ登録されていないモデルを使いたい場合は model-add を先に呼ぶこと。
+runtime: python
+entry: main.py
+handler: run
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: model.set
+  phrases:
+    - モデルを切り替えて
+    - chatをXに
+    - builderをXに
+    - 既定モデルを変更
+    - モデル変更
+  phrases_i18n:
+    en:
+      - switch the model
+      - set chat model
+      - set builder model
+      - change default model
+    ja:
+      - モデルを切り替えて
+      - chatをXに
+      - builderをXに
+      - 既定モデルを変更
+      - モデル変更
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      role:
+        type: string
+        enum:
+          - chat
+          - builder
+        description: 切り替え対象のロール
+        description_i18n:
+          en: Role to switch
+          ja: 切り替え対象のロール
+      id:
+        type: string
+        minLength: 1
+        description: 割り当てる既存のモデルID
+        description_i18n:
+          en: Existing model ID to assign
+          ja: 割り当てる既存のモデルID
+    required:
+      - role
+      - id

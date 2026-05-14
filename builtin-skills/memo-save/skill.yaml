@@ -1,0 +1,52 @@
+# Builtin: memo-save
+# 会話の skill-call または agent-sin run memo-save --text "..." で呼ばれる。
+# Markdown のデイリーノートに追記する低リスクスキル。複数行テキストにも対応する。
+# ユーザースキル著作のリファレンスとしても読まれる。詳細は https://agent.shingoirie.com/skill-authoring を参照。
+
+id: memo-save
+name: Memo Save
+name_i18n:
+  en: Memo Save
+  ja: メモ保存
+description: 会話内容をMarkdownメモとして保存する
+description_i18n:
+  en: Save conversation text as a Markdown memo
+  ja: 会話内容をMarkdownメモとして保存する
+runtime: python
+side_effect: true
+
+invocation:
+  command: memo.save
+  phrases:
+    - メモしといて
+    - メモして
+  phrases_i18n:
+    en:
+      - save this memo
+      - take a memo
+      - remember this
+    ja:
+      - メモしといて
+      - メモして
+
+input:
+  schema:
+    type: object
+    properties:
+      text:
+        type: string
+    required:
+      - text
+
+outputs:
+  - id: note
+    type: markdown
+    path: notes/{{yyyy}}/{{MM}}
+    filename: "{{date}}.md"
+    append: true
+    show_saved: false
+
+memory:
+  namespace: memo
+  read: true
+  write: true

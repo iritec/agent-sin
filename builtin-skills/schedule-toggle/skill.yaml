@@ -1,0 +1,61 @@
+# Builtin: schedule-toggle
+# ~/.agent-sin/schedules.yaml の指定IDの enabled をトグルする。
+
+id: schedule-toggle
+name: Schedule Toggle
+name_i18n:
+  en: Schedule Toggle
+  ja: スケジュール切替
+description: スケジュールの有効/無効を切り替える
+description_i18n:
+  en: Enable or disable a schedule
+  ja: スケジュールの有効/無効を切り替える
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: schedule.toggle
+  phrases:
+    - スケジュール一時停止
+    - スケジュール再開
+    - スケジュール有効化
+    - スケジュール無効化
+    - 定期実行を止めて
+    - 定期実行を有効に
+  phrases_i18n:
+    en:
+      - pause schedule
+      - resume schedule
+      - enable schedule
+      - disable schedule
+      - stop recurring task
+      - turn schedule on
+    ja:
+      - スケジュール一時停止
+      - スケジュール再開
+      - スケジュール有効化
+      - スケジュール無効化
+      - 定期実行を止めて
+      - 定期実行を有効に
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: 対象スケジュールのID
+        description_i18n:
+          en: Target schedule ID
+          ja: 対象スケジュールのID
+      enabled:
+        type: boolean
+        description: 明示的に有効/無効を指定する。省略時はトグル(反転)
+        description_i18n:
+          en: Explicitly set enabled or disabled. If omitted, toggle the current value
+          ja: 明示的に有効/無効を指定する。省略時はトグル(反転)
+    required:
+      - id

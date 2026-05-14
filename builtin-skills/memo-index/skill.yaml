@@ -1,0 +1,53 @@
+# Builtin: memo-index
+# notes_dir 配下のメモ行を Chroma ベクター DB に索引化する。
+# 索引は ~/.agent-sin/index/local-index/chroma に永続化、collection は memo (デフォルト)。
+# 多言語対応のため SentenceTransformer (paraphrase-multilingual-MiniLM-L12-v2) を使う。
+# Python 依存: chromadb, sentence-transformers
+#   推奨インストール先: ~/.agent-sin/.venv (auto-detect される)
+#     python3 -m venv ~/.agent-sin/.venv
+#     ~/.agent-sin/.venv/bin/pip install chromadb sentence-transformers
+
+id: memo-index
+name: Memo Index
+name_i18n:
+  en: Memo Index
+  ja: メモ索引化
+description: notes_dirのメモをChromaベクターDBに索引化する
+description_i18n:
+  en: Index notes_dir memos into a Chroma vector database
+  ja: notes_dirのメモをChromaベクターDBに索引化する
+runtime: python
+
+invocation:
+  command: memo.index
+  phrases:
+    - メモを索引化
+    - インデックス更新
+  phrases_i18n:
+    en:
+      - index memos
+      - update memo index
+    ja:
+      - メモを索引化
+      - インデックス更新
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      since:
+        type: string
+        description: ISO8601 (このタイムスタンプより新しい行のみ索引化)
+        description_i18n:
+          en: ISO8601 timestamp; only newer lines are indexed
+          ja: ISO8601 (このタイムスタンプより新しい行のみ索引化)
+      collection:
+        type: string
+        default: memo
+    required: []
+
+memory:
+  namespace: memo-index
+  read: true
+  write: true

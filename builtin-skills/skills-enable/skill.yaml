@@ -1,0 +1,51 @@
+# Builtin: skills-enable
+# 無効化されているスキルを再び有効化する。
+# ~/.agent-sin/skill-settings.yaml の disabled リストから id を取り除くだけ。
+
+id: skills-enable
+name: Skill Enable
+name_i18n:
+  en: Skill Enable
+  ja: スキル有効化
+description: 指定したスキルを有効化する
+description_i18n:
+  en: Enable the specified skill
+  ja: 指定したスキルを有効化する
+runtime: python
+entry: main.py
+handler: run
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: skills.enable
+  phrases:
+    - スキルを有効化
+    - スキルをオン
+    - スキル有効化
+    - 有効化して
+  phrases_i18n:
+    en:
+      - enable skill
+      - turn on skill
+      - skill enable
+    ja:
+      - スキルを有効化
+      - スキルをオン
+      - スキル有効化
+      - 有効化して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: 有効化したいスキルのID
+        description_i18n:
+          en: ID of the skill to enable
+          ja: 有効化したいスキルのID
+    required:
+      - id

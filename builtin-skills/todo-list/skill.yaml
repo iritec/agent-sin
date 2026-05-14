@@ -1,0 +1,48 @@
+# Builtin: todo-list
+# memory.todo namespace に保存された ToDo を一覧表示する読み取り専用スキル。
+
+id: todo-list
+name: ToDo List
+name_i18n:
+  en: ToDo List
+  ja: ToDo一覧
+description: ToDoの一覧を表示する
+description_i18n:
+  en: List ToDo items
+  ja: ToDoの一覧を表示する
+runtime: python
+output_mode: raw  # スキル結果をそのままユーザーに返し、LLM 再整形ターンを挟まない
+
+invocation:
+  command: todo.list
+  phrases:
+    - todo一覧
+    - todo
+    - やること
+    - タスク一覧
+  phrases_i18n:
+    en:
+      - list todos
+      - show todos
+      - task list
+    ja:
+      - todo一覧
+      - todo
+      - やること
+      - タスク一覧
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      status:
+        type: string
+        enum: [open, done, all]
+        default: open
+    required: []
+
+memory:
+  namespace: todo
+  read: true
+  write: false

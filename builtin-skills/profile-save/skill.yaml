@@ -1,0 +1,69 @@
+# Builtin: profile-save
+# soul.md / user.md / memory.md に、ユーザーが明示した長期プロフィールを追記する。
+
+id: profile-save
+name: Profile Save
+name_i18n:
+  en: Profile Save
+  ja: プロフィール保存
+description: soul.md、user.md、memory.mdへ長期プロフィールを保存する
+description_i18n:
+  en: Save long-term profile entries to soul.md, user.md, or memory.md
+  ja: soul.md、user.md、memory.mdへ長期プロフィールを保存する
+runtime: python
+side_effect: true
+
+invocation:
+  command: profile.save
+  phrases:
+    - soul.mdに書いて
+    - user.mdに書いて
+    - memory.mdに書いて
+    - 長期記憶に保存
+    - プロフィールに記録
+  phrases_i18n:
+    en:
+      - write to soul.md
+      - write to user.md
+      - write to memory.md
+      - save to long-term memory
+      - record profile
+    ja:
+      - soul.mdに書いて
+      - user.mdに書いて
+      - memory.mdに書いて
+      - 長期記憶に保存
+      - プロフィールに記録
+
+input:
+  schema:
+    type: object
+    properties:
+      target:
+        type: string
+        enum:
+          - soul
+          - user
+          - memory
+      text:
+        type: string
+    required:
+      - target
+      - text
+
+outputs:
+  - id: soul
+    type: markdown
+    path: memory/profile
+    filename: soul.md
+    append: true
+  - id: user
+    type: markdown
+    path: memory/profile
+    filename: user.md
+    append: true
+  - id: memory
+    type: markdown
+    path: memory/profile
+    filename: memory.md
+    append: true

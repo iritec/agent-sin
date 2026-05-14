@@ -1,0 +1,42 @@
+# Agent-Sin Skill manifest (TypeScript)
+# Required fields: id, runtime
+# entry/handler default to main.ts / run, so they can usually be omitted.
+# Common optional: name, description, input, outputs, memory, ai_steps, required_env
+# See https://agent.shingoirie.com/skill-authoring for the full reference.
+
+id: example-ts-skill        # Unique skill ID (kebab-case)
+name: Example TypeScript Skill
+description: Example TypeScript skill generated from the template
+runtime: typescript         # python | typescript
+
+invocation:
+  command: example.ts.run
+  phrases:
+    - run the TypeScript example
+
+input:
+  schema:
+    type: object
+    properties:
+      text:
+        type: string
+        description: Text to process
+    required:
+      - text
+
+outputs:
+  - id: note
+    type: markdown
+    path: notes/examples
+    filename: "{{date}}-example-ts.md"
+    append: true
+
+memory:
+  namespace: example-ts
+  read: true
+  write: true
+
+# Optional: set "raw" only when you want to return the summary directly to users.
+# By default, the LLM receives the result and formats a natural-language reply.
+# See https://agent.shingoirie.com/skill-authoring for details.
+# output_mode: raw

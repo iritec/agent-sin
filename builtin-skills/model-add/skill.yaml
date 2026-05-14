@@ -1,0 +1,112 @@
+# Builtin: model-add
+# ~/.agent-sin/models.yaml にモデル定義を1件追加する。set_as を渡せば
+# chat / builder のロールにも同時に割り当てる。
+
+id: model-add
+name: Model Add
+name_i18n:
+  en: Model Add
+  ja: モデル追加
+description: >-
+  AIモデル定義を models.yaml に追加する。provider は codex / claude-code /
+  openai / gemini / anthropic / ollama のいずれか。model 名を省略すると
+  各プロバイダの既定値を使う。codex / claude-code は effort
+  (low/medium/high/xhigh) を受け付ける。set_as=chat または builder を渡すと
+  追加と同時にそのロールの既定モデルにする。
+description_i18n:
+  en: >-
+    Add an AI model definition to models.yaml. provider must be one of
+    codex / claude-code / openai / gemini / anthropic / ollama. When model
+    is omitted, the per-provider default is used. codex / claude-code
+    accept an effort (low/medium/high/xhigh). When set_as=chat or builder
+    is given, the new model is also assigned to that role.
+  ja: >-
+    AIモデル定義を models.yaml に追加する。provider は codex / claude-code /
+    openai / gemini / anthropic / ollama のいずれか。model 名を省略すると
+    各プロバイダの既定値を使う。codex / claude-code は effort
+    (low/medium/high/xhigh) を受け付ける。set_as=chat または builder を渡すと
+    追加と同時にそのロールの既定モデルにする。
+runtime: python
+entry: main.py
+handler: run
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: model.add
+  phrases:
+    - モデルを追加
+    - モデル追加
+    - openaiモデルを追加して
+    - anthropicを使えるようにして
+    - geminiを追加
+    - ollamaモデルを登録
+  phrases_i18n:
+    en:
+      - add a model
+      - register a model
+      - enable openai
+      - add anthropic
+      - add gemini
+      - register ollama model
+    ja:
+      - モデルを追加
+      - モデル追加
+      - openaiモデルを追加して
+      - anthropicを使えるようにして
+      - geminiを追加
+      - ollamaモデルを登録
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      provider:
+        type: string
+        enum:
+          - codex
+          - claude-code
+          - openai
+          - gemini
+          - anthropic
+          - ollama
+        description: 追加するモデルのプロバイダ
+        description_i18n:
+          en: Provider of the model to add
+          ja: 追加するモデルのプロバイダ
+      model:
+        type: string
+        description: モデル名 (省略時はプロバイダ既定値)
+        description_i18n:
+          en: Model name (uses provider default when omitted)
+          ja: モデル名 (省略時はプロバイダ既定値)
+      effort:
+        type: string
+        enum:
+          - low
+          - medium
+          - high
+          - xhigh
+        description: effort 設定 (codex / claude-code のみ)
+        description_i18n:
+          en: effort setting (codex / claude-code only)
+          ja: effort 設定 (codex / claude-code のみ)
+      id:
+        type: string
+        minLength: 1
+        description: 任意のエントリID (省略時は自動生成)
+        description_i18n:
+          en: Optional entry ID (auto-derived when omitted)
+          ja: 任意のエントリID (省略時は自動生成)
+      set_as:
+        type: string
+        enum:
+          - chat
+          - builder
+        description: 追加後にこのロールの既定モデルに設定する
+        description_i18n:
+          en: Also set as the default for this role after adding
+          ja: 追加後にこのロールの既定モデルに設定する
+    required:
+      - provider

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local runtime data
+.local/
+.agent-sin/
+.agent-sin-*/
+
+# Logs and diagnostics
+logs/
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Python caches
+__pycache__/
+*.pyc

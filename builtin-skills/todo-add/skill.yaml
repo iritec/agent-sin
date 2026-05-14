@@ -1,0 +1,53 @@
+# Builtin: todo-add
+# ToDo を1件追加する。状態は memory.todo namespace に保存される。
+
+id: todo-add
+name: ToDo Add
+name_i18n:
+  en: ToDo Add
+  ja: ToDo追加
+description: ToDoを1件追加する
+description_i18n:
+  en: Add one ToDo item
+  ja: ToDoを1件追加する
+runtime: python
+output_mode: raw  # スキル結果をそのままユーザーに返し、LLM 再整形ターンを挟まない
+side_effect: true
+
+invocation:
+  command: todo.add
+  phrases:
+    - todo追加
+    - やることを追加
+    - タスク追加
+  phrases_i18n:
+    en:
+      - add todo
+      - add a task
+      - create todo
+    ja:
+      - todo追加
+      - やることを追加
+      - タスク追加
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      text:
+        type: string
+        minLength: 1
+      due:
+        type: string
+        description: ISO8601 日時 (任意, 例 2026-05-17T18:00:00+09:00)。日付だけでなく時刻まで指定でき、todo-tick が到達時にctx.notifyで通知する
+        description_i18n:
+          en: Optional ISO8601 date-time, e.g. 2026-05-17T18:00:00+09:00. Include a time so todo-tick can notify when it arrives
+          ja: ISO8601 日時 (任意, 例 2026-05-17T18:00:00+09:00)。日付だけでなく時刻まで指定でき、todo-tick が到達時にctx.notifyで通知する
+    required:
+      - text
+
+memory:
+  namespace: todo
+  read: true
+  write: true

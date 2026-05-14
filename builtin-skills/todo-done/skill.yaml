@@ -1,0 +1,47 @@
+# Builtin: todo-done
+# 指定したToDoを完了状態に更新する。idの先頭一致でも対応。
+
+id: todo-done
+name: ToDo Done
+name_i18n:
+  en: ToDo Done
+  ja: ToDo完了
+description: ToDoを完了済みにする
+description_i18n:
+  en: Mark a ToDo item as done
+  ja: ToDoを完了済みにする
+runtime: python
+output_mode: raw  # スキル結果をそのままユーザーに返し、LLM 再整形ターンを挟まない
+side_effect: true
+
+invocation:
+  command: todo.done
+  phrases:
+    - todo完了
+    - 完了
+    - チェック
+  phrases_i18n:
+    en:
+      - complete todo
+      - mark todo done
+      - check off task
+    ja:
+      - todo完了
+      - 完了
+      - チェック
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+    required:
+      - id
+
+memory:
+  namespace: todo
+  read: true
+  write: true

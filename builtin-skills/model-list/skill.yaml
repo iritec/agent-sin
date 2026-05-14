@@ -1,0 +1,48 @@
+# Builtin: model-list
+# models.yaml の登録モデル一覧と、chat / builder の現在の割当を返す。
+
+id: model-list
+name: Model List
+name_i18n:
+  en: Model List
+  ja: モデル一覧
+description: >-
+  models.yaml に登録されているモデル一覧と、chat / builder ロールの現在の
+  割当を返す。「今のモデルは何?」「使えるモデルは?」に答えるのに使う。
+description_i18n:
+  en: >-
+    Returns the list of models registered in models.yaml and the
+    current chat / builder role bindings.
+  ja: >-
+    models.yaml に登録されているモデル一覧と、chat / builder ロールの現在の
+    割当を返す。「今のモデルは何?」「使えるモデルは?」に答えるのに使う。
+runtime: python
+entry: main.py
+handler: run
+output_mode: raw
+side_effect: false
+
+invocation:
+  command: model.list
+  phrases:
+    - 今のモデルは
+    - 使えるモデル
+    - モデル一覧
+    - 登録モデル
+  phrases_i18n:
+    en:
+      - which model
+      - available models
+      - list models
+      - registered models
+    ja:
+      - 今のモデルは
+      - 使えるモデル
+      - モデル一覧
+      - 登録モデル
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties: {}

@@ -1,0 +1,49 @@
+# Builtin: schedule-remove
+# ~/.agent-sin/schedules.yaml から指定IDのスケジュールを削除する。
+
+id: schedule-remove
+name: Schedule Remove
+name_i18n:
+  en: Schedule Remove
+  ja: スケジュール削除
+description: 登録済みスケジュールをIDで削除する
+description_i18n:
+  en: Delete a registered schedule by ID
+  ja: 登録済みスケジュールをIDで削除する
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: schedule.remove
+  phrases:
+    - スケジュール削除
+    - 定期実行を消して
+    - cronを削除
+    - スケジュールを止めて
+  phrases_i18n:
+    en:
+      - delete schedule
+      - remove recurring task
+      - delete cron
+      - stop schedule
+    ja:
+      - スケジュール削除
+      - 定期実行を消して
+      - cronを削除
+      - スケジュールを止めて
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: 削除するスケジュールのID
+        description_i18n:
+          en: ID of the schedule to delete
+          ja: 削除するスケジュールのID
+    required:
+      - id

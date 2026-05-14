@@ -1,0 +1,53 @@
+# Builtin: memo-vector-search
+# memo-index で索引化した Chroma DB を意味検索する (multilingual MiniLM L12 経由)。
+# memo-search (substring grep) との使い分け:
+#   memo-search        → 完全一致・タグ検索向き、軽量
+#   memo-vector-search → 意味検索 (類義語・別表現を拾える)、要索引化
+
+id: memo-vector-search
+name: Memo Vector Search
+name_i18n:
+  en: Memo Vector Search
+  ja: メモ意味検索
+description: 索引化されたメモを意味検索する (Chroma)
+description_i18n:
+  en: Semantically search indexed memos with Chroma
+  ja: 索引化されたメモを意味検索する (Chroma)
+runtime: python
+
+invocation:
+  command: memo.vsearch
+  phrases:
+    - 意味検索
+    - ベクター検索
+  phrases_i18n:
+    en:
+      - semantic memo search
+      - vector search
+    ja:
+      - 意味検索
+      - ベクター検索
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      query:
+        type: string
+        minLength: 1
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 5
+      collection:
+        type: string
+        default: memo
+    required:
+      - query
+
+memory:
+  namespace: memo-index
+  read: true
+  write: false

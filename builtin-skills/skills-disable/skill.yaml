@@ -1,0 +1,52 @@
+# Builtin: skills-disable
+# 任意のスキル(builtin/user 問わず)を無効化する。
+# ~/.agent-sin/skill-settings.yaml の disabled リストに id を追記するだけで、
+# スキル本体ファイルには触れない。
+
+id: skills-disable
+name: Skill Disable
+name_i18n:
+  en: Skill Disable
+  ja: スキル無効化
+description: 指定したスキルを無効化する
+description_i18n:
+  en: Disable the specified skill
+  ja: 指定したスキルを無効化する
+runtime: python
+entry: main.py
+handler: run
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: skills.disable
+  phrases:
+    - スキルを無効化
+    - スキルをオフ
+    - スキル無効化
+    - 無効化して
+  phrases_i18n:
+    en:
+      - disable skill
+      - turn off skill
+      - skill disable
+    ja:
+      - スキルを無効化
+      - スキルをオフ
+      - スキル無効化
+      - 無効化して
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: 無効化したいスキルのID
+        description_i18n:
+          en: ID of the skill to disable
+          ja: 無効化したいスキルのID
+    required:
+      - id

@@ -1,0 +1,60 @@
+{
+  "name": "agent-sin",
+  "version": "0.1.0",
+  "description": "Program Skill-first personal AI agent OS CLI.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Agent-Sin contributors",
+  "homepage": "https://agent.shingoirie.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iritec/agent-sin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iritec/agent-sin/issues"
+  },
+  "main": "./dist/cli/index.js",
+  "types": "./dist/skills-sdk/types.d.ts",
+  "bin": {
+    "agent-sin": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist/",
+    "assets/",
+    "install.sh",
+    "install.ps1",
+    "builtin-skills/",
+    "templates/",
+    "scripts/",
+    "!builtin-skills/**/__pycache__",
+    "!builtin-skills/**/*.pyc",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/chmod-bin.mjs",
+    "setup": "npm ci --include=dev && npm run build && node scripts/local-cli.mjs setup",
+    "setup:global": "npm ci --include=dev && npm run build && npm link && agent-sin setup && agent-sin service install",
+    "start": "npm run build && node scripts/local-cli.mjs chat",
+    "demo": "npm run build && node scripts/local-cli.mjs setup && node scripts/local-cli.mjs run memo-save --text test-memo",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "smoke:providers": "npm run build && node scripts/smoke-providers.mjs",
+    "prepack": "npm run build",
+    "pack:check": "npm pack --dry-run",
+    "release:check": "npm test && npm run pack:check"
+  },
+  "dependencies": {
+    "nodemailer": "^8.0.7",
+    "typescript": "^5.9.3",
+    "ws": "^8.20.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/nodemailer": "^8.0.0",
+    "@types/ws": "^8.18.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

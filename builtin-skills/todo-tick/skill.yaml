@@ -1,0 +1,48 @@
+# Builtin: todo-tick
+# 期限を過ぎた open ToDo を通知して notified_at を打つ。
+# schedules.yaml に毎分実行で登録するか、手動で `agent-sin run todo-tick` を呼ぶ。
+
+id: todo-tick
+name: ToDo Tick
+name_i18n:
+  en: ToDo Tick
+  ja: ToDo期限通知
+description: 期限が到達したToDoを通知する
+description_i18n:
+  en: Notify when ToDo due times are reached
+  ja: 期限が到達したToDoを通知する
+runtime: python
+output_mode: raw
+side_effect: true
+
+invocation:
+  command: todo.tick
+  phrases:
+    - 期限のToDoを確認
+    - ToDo通知をチェック
+    - todoの期限チェック
+  phrases_i18n:
+    en:
+      - check due todos
+      - todo notifications
+      - check todo deadlines
+    ja:
+      - 期限のToDoを確認
+      - ToDo通知をチェック
+      - todoの期限チェック
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      channel:
+        type: string
+        enum: [auto, macos, discord, telegram, slack, mail, stderr]
+        default: auto
+    required: []
+
+memory:
+  namespace: todo
+  read: true
+  write: true
