@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.10] — 2026-05-14
+
+### Fixed
+
+- Update notifications now compare full semver versions correctly. Previously `0.1.6` and `0.1.9` were treated as equal because only the major segment was compared, so `agent-sin start` could miss an available update even when `update-check.json` already had the newer version.
+
+---
+
 ## [0.1.9] — 2026-05-14
 
 ### Fixed
