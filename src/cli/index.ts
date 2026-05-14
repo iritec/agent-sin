@@ -483,16 +483,10 @@ async function cmdRun(args: string[]): Promise<number> {
 async function cmdChat(args: string[]): Promise<number> {
   const config = await loadConfig();
   scheduleUpdateCheck(config.workspace);
-  // Interactive CLI: always check the registry on startup so the user sees
-  // any new release immediately, not on the next session.
-  const startupBanner = await consumeUpdateBanner(config.workspace, { force: true });
-  if (startupBanner) {
-    console.log(startupBanner);
-  }
   const history: ChatTurn[] = [];
   if (args.length > 0) {
     const lines = await handleChatMessage(config, args.join(" "), history);
-    const banner = await consumeUpdateBanner(config.workspace);
+    const banner = await consumeUpdateBanner(config.workspace, { force: true });
     if (banner) {
       console.log(banner);
     }
@@ -501,6 +495,9 @@ async function cmdChat(args: string[]): Promise<number> {
     }
     return 0;
   }
+  // For the interactive session, always hit the registry on startup. Render the
+  // banner *after* the ascii banner so it stays visible on small terminals.
+  const startupUpdateBanner = await consumeUpdateBanner(config.workspace, { force: true });
   await warnIfSchedulesNeedService(config);
   const intentRuntime: IntentRuntime = {
     pending: null,
@@ -529,6 +526,10 @@ async function cmdChat(args: string[]): Promise<number> {
   } else {
     console.log(l("agent-sin chat. /help / /reset / /exit  (Tab completion)", "agent-sin chat. /help / /reset / /exit  (Tabで補完)"));
     console.log(l("mode: chat  |  build/edit mode is suggested automatically when useful", "mode: chat  |  必要に応じてビルド/編集モードに自動で切替提案します"));
+  }
+  if (startupUpdateBanner) {
+    console.log("");
+    console.log(uiActive() ? formatChatLine(startupUpdateBanner) : startupUpdateBanner);
   }
   while (true) {
     let raw: string;

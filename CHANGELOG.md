@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.8] — 2026-05-14
+
+### Fixed
+
+- Update notification on `agent-sin start` / `agent-sin chat` was being emitted *before* the ascii startup banner, so on small terminals it scrolled out of view. The notification now renders *after* the startup banner, with a blank line of separation, so it is always visible at the bottom of the welcome area.
+
+---
+
 ## [0.1.7] — 2026-05-14
 
 ### Fixed
