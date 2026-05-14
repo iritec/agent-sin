@@ -434,9 +434,9 @@ test("builder prompt allows direct .env edits for skill-required settings only",
       "env-edit-prompt",
       "APIトークンを受け取ったら設定して",
     );
-    assert.match(system, /\.env\(スキルに必要な環境変数だけ更新可\)/);
-    assert.match(system, /required_env.*~\/\.agent-sin\/\.env` を直接更新してよい/s);
-    assert.doesNotMatch(system, /\.env[^\n]*(?:書き換え禁止|あなたは編集しない)/);
+    assert.match(system, /\.env \(update only the env vars this skill needs\)/);
+    assert.match(system, /required_env.*you may update `~\/\.agent-sin\/\.env` directly/s);
+    assert.doesNotMatch(system, /\.env[^\n]*(?:must not edit|you must not write)/);
   } finally {
     setAiProviderOverride(null);
   }

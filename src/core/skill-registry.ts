@@ -83,7 +83,7 @@ export interface SkillManifest {
    * update, save). The chat engine drops the LLM's narrative for any turn that
    * invokes a side-effect skill so the deterministic skill result is the only
    * record — both for the user and in the conversation history. This prevents
-   * future-tense announcements like "今から追加します" from sitting next to a
+   * future-tense announcements like "I'll add it now" from sitting next to a
    * successful tool result and getting misread as "not done yet" on the next
    * turn.
    */

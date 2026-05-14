@@ -192,8 +192,9 @@ export async function buildDraftWithAgent(
   });
   emitBuildProgress(options.onProgress, l(`Organizing requirements (${session.skill_id})`, `要件を整理しています (${session.skill_id})`));
   const state = await readBuildState(session);
-  // models.yaml の roles.builder を毎回反映させるため、明示指定が無ければ
-  // セッションに残った古い builder ID は引き継がず config の最新値を採用する。
+  // Always reflect the latest roles.builder from models.yaml: when no explicit
+  // override is passed, prefer the current config value over any stale builder
+  // id left in the session.
   const resolvedBuilder = await resolveBuilderEntry(config, options.builder);
   const handoffMessage = formatHandoffSummary(options.handoff || []);
   const handoffTs = new Date().toISOString();
@@ -633,7 +634,7 @@ function formatHandoffSummary(handoff: BuilderHandoffTurn[]): string {
     return "";
   }
   const lines: string[] = [
-    "[Chat handoff context — 直前のチャットでの会話内容です。要件抽出に使ってください]",
+    "[Chat handoff context — conversation from the previous chat. Use it to extract requirements.]",
   ];
   for (const turn of trimmed) {
     const role = turn.role === "assistant" ? "assistant" : turn.role === "tool" ? "tool" : "user";
@@ -666,9 +667,9 @@ async function assertRegisterableSkillSource(
   throw new Error(l("The skill definition is inconsistent. Describe the fix again.", "スキルの定義に不整合があります。もう一度、修正内容を伝えてください。"));
 }
 
-// CLI で `--builder` などを明示指定したときだけ candidate を尊重する。
-// 通常呼び出しでは候補なしで来るので、必ず config.builder_model_id
-// (= models.yaml の roles.builder) が採用される。
+// Respect `candidate` only when the CLI explicitly passes `--builder` or
+// similar. Normal calls arrive without a candidate, so config.builder_model_id
+// (i.e. roles.builder from models.yaml) is always used.
 async function resolveBuilderEntry(config: AppConfig, candidate: string | undefined): Promise<string> {
   const fallback = config.builder_model_id;
   if (!candidate) return fallback;
@@ -802,17 +803,17 @@ function buildBuilderRepairMessages(
   runtimeContext?: BuilderRuntimeContext,
   profileMemory?: ProfileMemoryFiles,
 ): AiMessage[] {
-  const previous = stripBuilderArtifacts(previousText) || previousText || "（応答なし）";
+  const previous = stripBuilderArtifacts(previousText) || previousText || "(no response)";
   return [
     ...buildBuilderMessages(session, state, runtimeContext, profileMemory),
     { role: "assistant", content: previous },
     {
       role: "user",
       content: [
-        "直前の返答では draft に skill.yaml / main.* が作られていません。",
-        "ユーザーに言い直しを求めず、このターンで cwd 直下に最小限動く実装を書いてください。",
-        "不明点は一般的な仮定で補い、認証情報が必要なら required_env に宣言してください。",
-        "完了後はユーザー向けの短い報告だけ返してください。",
+        "Your previous reply did not create skill.yaml / main.* in the draft.",
+        "Do not ask the user to rephrase. In this turn, write a minimal working implementation directly under cwd.",
+        "Fill any unknowns with reasonable assumptions, and declare required_env if credentials are needed.",
+        "After writing, return only a short user-facing report in the user's language.",
       ].join("\n"),
     },
   ];
@@ -826,7 +827,7 @@ function buildBuilderVerificationRepairMessages(
   runtimeContext?: BuilderRuntimeContext,
   profileMemory?: ProfileMemoryFiles,
 ): AiMessage[] {
-  const previous = stripBuilderArtifacts(previousText) || previousText || "（応答なし）";
+  const previous = stripBuilderArtifacts(previousText) || previousText || "(no response)";
   const errors = readiness.validation.errors.length > 0
     ? readiness.validation.errors.join("\n")
     : readiness.summary;
@@ -836,9 +837,9 @@ function buildBuilderVerificationRepairMessages(
     {
       role: "user",
       content: [
-        "作成後の自己確認でまだ動かせませんでした。",
-        "ユーザーに言い直しを求めず、このターンで cwd 直下の実装を修正してください。",
-        "認証情報が必要なだけの場合は required_env に宣言し、実装は完成させてください。",
+        "The post-creation self-check still cannot run the skill.",
+        "Do not ask the user to rephrase. In this turn, fix the implementation directly under cwd.",
+        "If the only missing piece is credentials, declare them in required_env and still finish the implementation.",
         "",
         "<verification_result>",
         errors,
@@ -850,7 +851,7 @@ function buildBuilderVerificationRepairMessages(
 
 function missingSkillSourceSummary(rawSummary: string): string {
   const trimmed = rawSummary.trim();
-  if (!trimmed || trimmed === "（応答なし）") {
+  if (!trimmed || trimmed === "(no response)" || trimmed === "（応答なし）") {
     return l("I could not continue creating it. Please describe in one sentence what you want the skill to do.", "作成に進めませんでした。何をするスキルにしたいか、1文で教えてください。");
   }
   return l(`${trimmed}\n\nI need more detail to create it. Please describe in one sentence what you want the skill to do.`, `${trimmed}\n\n作成に必要な内容が足りません。何をするスキルにしたいか、1文で教えてください。`);
@@ -859,9 +860,6 @@ function missingSkillSourceSummary(rawSummary: string): string {
 function sanitizeBuilderSummary(summary: string, _context: BuilderRuntimeContext): string {
   return summary
     .replace(/^.*(?:override|上書きコピー|workspace override|packaged builtin|packaged original|ビルトイン.*本体.*変更).*$\n?/gim, "")
-    .replace(/準備が(?:全部)?終わってから[^\n。]*[「『]?登録して[」』]?[^\n。]*[。]?/g, "準備ができたら、そのまま使えます。")
-    .replace(/[「『]?登録して[」』]?と言って(?:ください|もらえれば使えます)[。]?/g, "そのまま使えます。")
-    .replace(/そこから登録します/g, "そこから確認します")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -937,51 +935,51 @@ export function formatDiscordSlashGuidance(
 ): string[] {
   if (!context || context.event_source !== "discord") return [];
   return [
-    "# Discord セッション限定の追加仕様（スラッシュコマンドも併設できる）",
-    "- このセッションは Discord から開かれている。`invocation.phrases` によるチャット発火は今まで通り必須で残す。`discord_slash` はそれに**追加**するショートカットで、置き換えではない。",
-    "- ユーザーが『/コマンドで叩きたい』『スラコマで』『ボタンで』など Discord ネイティブで呼びたい意図を出した場合、または引数が1〜3個で値が明確な単純な操作系スキル(todo追加・メモ追加・削除・トグルなど)を作る場合は、`invocation.discord_slash` を併設する。AI生成・対話・要約系は phrases だけで十分。",
-    "- 書き方:\n```\ninvocation:\n  phrases: [...]              # 必須(残す)\n  discord_slash:                # 追加(任意)\n    description: コインを投げる\n    options:\n      - name: count\n        type: integer           # string|integer|number|boolean のみ\n        description: 回数\n        required: false\n```",
-    "- ルール: コマンド名は skill.id がそのまま使われる。サブコマンドは作らない(1スキル=1コマンド、フラットなオプション)。`options[*].type` は string/integer/number/boolean のみ。`choices` は string/integer/number のみで `[{name, value}]`。`required` は省略時 false。日本語の説明は `description_ja` に書ける。",
-    "- input.schema と discord_slash.options は整合させる。同名・同義の引数で書く(例: schema に `text` があれば option も `name: text`)。",
-    "- 反映タイミング: `discord_slash` を**新規に追加・変更・削除**したスキルを登録した時は、Discord 側のスラッシュコマンド一覧に出るまで Bot の再起動(再接続)が必要。登録完了メッセージにその旨を必ず添える(例: 『スラコマとして使うには Bot の再起動が必要です。チャット起動(phrases)は今すぐ使えます』)。`phrases` だけのスキルや、既存スキルの本体ロジックだけ直した場合は再起動不要。",
+    "# Discord-only extra spec (you may also add a slash command)",
+    "- This session was opened from Discord. The chat-triggered `invocation.phrases` remains required as before. `invocation.discord_slash` is an *additional* shortcut, not a replacement.",
+    "- Add `invocation.discord_slash` when the user explicitly asks for a slash command/button-style trigger, or when the skill is a simple action (todo add, memo add, delete, toggle, etc.) with 1-3 clearly-typed arguments. Generative / conversational / summarizing skills only need phrases.",
+    "- Shape:\n```\ninvocation:\n  phrases: [...]              # required (keep)\n  discord_slash:                # optional (add)\n    description: Flip a coin\n    options:\n      - name: count\n        type: integer           # only string|integer|number|boolean\n        description: number of flips\n        required: false\n```",
+    "- Rules: the command name is taken from skill.id (one skill = one command, flat options, no subcommands). `options[*].type` must be string/integer/number/boolean. `choices` must be `[{name, value}]` for string/integer/number only. `required` defaults to false. A Japanese description can be placed in `description_ja`.",
+    "- Keep `input.schema` and `discord_slash.options` consistent. Use matching names/meanings (e.g. if the schema has `text`, the option should also be `name: text`).",
+    "- Activation timing: when a skill that adds, changes, or removes `discord_slash` is registered, the Discord slash-command list will only update after the bot restarts (reconnects). Always mention this in the completion message (e.g. \"Restart the bot to use it as a slash command. The chat trigger (phrases) is available now.\"). A skill that only uses `phrases`, or an edit that does not touch `discord_slash`, does not require a restart.",
     "",
   ];
 }
 
 function formatBuilderRuntimeContext(context: BuilderRuntimeContext | undefined): string[] {
   if (!context) return [];
-  const envKeys = context.dotenv_keys.length > 0 ? summarizeList(context.dotenv_keys, 80) : "なし";
-  const enabled = context.enabled_models.length > 0 ? summarizeList(context.enabled_models, 30) : "なし";
-  const disabled = context.disabled_models.length > 0 ? summarizeList(context.disabled_models, 30) : "なし";
+  const envKeys = context.dotenv_keys.length > 0 ? summarizeList(context.dotenv_keys, 80) : "(none)";
+  const enabled = context.enabled_models.length > 0 ? summarizeList(context.enabled_models, 30) : "(none)";
+  const disabled = context.disabled_models.length > 0 ? summarizeList(context.disabled_models, 30) : "(none)";
   return [
-    "# 作業場所",
-    `- 作業ディレクトリ(cwd / 書き込み許可): ${context.draft_dir}`,
-    `- agent-sin 本体(参考用に読み取りのみ): ${context.install_root}`,
-    `- agent-sin ワークスペース: ${context.workspace_dir}`,
-    `- 他スキル置き場(参考用に読み取りのみ): ${context.skills_dir}`,
-    `- .env(スキルに必要な環境変数だけ更新可): ${context.dotenv_path}`,
+    "# Workspace",
+    `- Working directory (cwd / writable): ${context.draft_dir}`,
+    `- agent-sin source tree (read-only, for reference): ${context.install_root}`,
+    `- agent-sin workspace: ${context.workspace_dir}`,
+    `- Other skills (read-only, for reference): ${context.skills_dir}`,
+    `- .env (update only the env vars this skill needs): ${context.dotenv_path}`,
     "",
-    "# 直接触ってはいけない領域と対応ルート",
-    `- ${context.dotenv_path}: このスキルの required_env に書いたキー、またはユーザーが明示したスキル用キーだけ追記・更新してよい。既存の無関係なキーは変更しない。agent-sin 本体設定(AGENT_SIN_*)は絶対に書かない。`,
-    `- ${context.skills_dir}/<別スキル>: 別スキルを直すときはユーザーに『○○ を直したい』と返してもらう。host 側が cwd をそのスキルに切り替えてビルドモードを再起動する。`,
-    `- ${context.workspace_dir}/schedules.yaml: 直接編集しない。定期実行が必要なら schedule-add などの組み込みスキル経由をユーザーに案内する。`,
-    `- ${context.workspace_dir}/models.yaml / config.toml: 触らない。agent-sin 本体の設定。`,
-    `- ${context.install_root}: agent-sin 本体ソース。理解の参考に読むのは OK、書き込みは禁止。`,
+    "# Areas you must not touch directly, and how to handle them",
+    `- ${context.dotenv_path}: you may add/update only the keys declared in this skill's required_env, or skill-specific keys the user explicitly mentioned. Do not change unrelated keys. Never write agent-sin runtime settings (AGENT_SIN_*).`,
+    `- ${context.skills_dir}/<other skill>: when another skill needs to be fixed, ask the user to say "fix XXX". The host will switch cwd to that skill and restart build mode.`,
+    `- ${context.workspace_dir}/schedules.yaml: do not edit directly. If recurring execution is needed, instruct the user to call the schedule-add built-in skill.`,
+    `- ${context.workspace_dir}/models.yaml / config.toml: do not touch. These are agent-sin runtime settings.`,
+    `- ${context.install_root}: the agent-sin source. Read it for reference if useful, but never write to it.`,
     "",
-    "# 既存設定（値は非表示）",
-    `- .env: ${context.dotenv_loaded ? "読み込み済み" : "未作成"} (${context.dotenv_path})`,
-    `- .env内のキー: ${envKeys}`,
-    `- 既定モデル: ${context.default_chat_model}`,
-    `- 有効なモデルID: ${enabled}`,
-    `- 無効なモデルID: ${disabled}`,
-    `- 登録方式: 自動登録済み。完了後に登録依頼は不要`,
+    "# Existing settings (values hidden)",
+    `- .env: ${context.dotenv_loaded ? "loaded" : "not created"} (${context.dotenv_path})`,
+    `- .env keys: ${envKeys}`,
+    `- Default model: ${context.default_chat_model}`,
+    `- Enabled model ids: ${enabled}`,
+    `- Disabled model ids: ${disabled}`,
+    `- Registration: handled automatically. Do not ask the user to register the skill afterwards.`,
   ];
 }
 
 function summarizeList(values: string[], limit: number): string {
   const visible = values.slice(0, limit);
   const rest = values.length - visible.length;
-  return rest > 0 ? `${visible.join(", ")} ほか${rest}件` : visible.join(", ");
+  return rest > 0 ? `${visible.join(", ")} and ${rest} more` : visible.join(", ");
 }
 
 function buildBuilderMessages(
@@ -992,72 +990,72 @@ function buildBuilderMessages(
 ): AiMessage[] {
   const profileLines = formatProfileMemoryPromptSection(profileMemory);
   const system = [
-    "# 状況",
-    "- きみは AIエージェント agent-sin のスキル作成機能。",
-    "- 仕事はユーザーの要望に合わせて agent-sin で動くスキルを作って、書き終わった瞬間から使える状態にすること。",
-    "- ユーザーはエンジニアではない。関数名・コマンド・技術用語は聞かない。普段の言葉で要望を受け取る。",
+    "# Context",
+    "- You are the skill-building module of the agent-sin AI agent.",
+    "- Your job is to build a skill that runs on agent-sin from the user's request, and to leave it in a state where it can be used immediately after writing.",
+    "- The user is not an engineer. Do not ask about function names, commands, or technical jargon. Take requirements in plain language.",
     "",
-    "# 進め方",
-    "1. ユーザーの要件を読む。要件が固まらないと作れないことだけ、一度に最大3つまでまとめて聞いていい。返答がまだ足りなければ再度3つまで聞き直してOK。要件が固まるまで何回往復しても構わない。逆に、判断できる範囲なら聞かずに最短で実装に進む。",
-    "2. 要件が固まったら、応答本文に**必ず**ファイルブロックを並べてファイルを書き出す。形式は `\\`\\`\\`file:<相対パス>` で開いて、内容をそのまま書き、`\\`\\`\\`` で閉じる。skill.yaml と main.py(TypeScript なら main.ts) を必ず両方出す。必要なら fixtures/input.json も同じ形式で。`\\`\\`\\`yaml` `\\`\\`\\`python` などの言語フェンスは使わず、「ファイル:」のような日本語ラベルも単独で使わない。完了報告だけ書いてファイルブロックを省くと agent-sin は何も書き込まないので、スキルは未完成のままになる。例:\n```file:skill.yaml\nid: example\nname: 例\ndescription: ...\nruntime: python\ninvocation:\n  phrases:\n    - 例を実行\noutput_mode: raw\n```\n```file:main.py\nasync def run(ctx, input):\n    return {\"status\": \"ok\", \"summary\": \"hello\"}\n```",
-    "3. ファイルを書いた後で完了報告を書く。完了報告は『何ができるようになったか』を 1〜2 文で伝える短い文章にする。『テストしますか？』『動かしますか？』のような確認質問は付けない。ユーザーが『動かして』『試して』のようにこのスキルを動かしたいと返したら、システム側が自動でチャットモードに切り替えて実際にスキルを実行するので、きみは何もしなくていい。",
+    "# How to proceed",
+    "1. Read the user's requirements. Only when something truly cannot be built without clarification, ask at most three questions at a time. You may ask another batch of up to three if the answer is still insufficient. Iterate as many times as needed. Conversely, when you can decide on your own, go straight to implementation.",
+    "2. Once requirements are clear, you *must* emit file blocks in the response body to write the files. The format is `\\`\\`\\`file:<relative-path>` to open, the raw file content, and `\\`\\`\\`` to close. Always emit both skill.yaml and main.py (main.ts if TypeScript). If needed, emit fixtures/input.json in the same format. Do not use language fences like `\\`\\`\\`yaml` / `\\`\\`\\`python`, and do not use plain labels like \"File:\" alone. If you write only a completion report and omit the file blocks, agent-sin writes nothing and the skill stays unfinished. Example:\n```file:skill.yaml\nid: example\nname: Example\ndescription: ...\nruntime: python\ninvocation:\n  phrases:\n    - run the example\noutput_mode: raw\n```\n```file:main.py\nasync def run(ctx, input):\n    return {\"status\": \"ok\", \"summary\": \"hello\"}\n```",
+    "3. After writing the files, write a completion report. The report is a short 1-2 sentence note about \"what is now possible\". Do not add confirmation questions like \"Want to test it?\" or \"Should I run it?\". If the user replies with \"run it\" / \"try it\" / etc., the system automatically switches back to chat mode and runs the skill — you do not need to prompt for that.",
     "",
-    "# 既存設定の扱い",
-    "- 作成前に下の既存設定一覧を確認し、既にあるキーを未設定として案内しない。値は見えない前提で、キー名の有無だけを使う。",
-    "- `ai_steps[].model` は基本的に論理ロール名 `chat`（軽量応答）か `builder`（高品質生成）を指定する。特定モデルが必要な場合だけ実モデルID（例: `codex-low`）を書く。存在しないモデル名は書かない。",
-    "- ユーザーが『Discord通知』と言った場合は agent-sin の通知機能のこと。スキルからは `ctx.notify({ channel: \"discord\", ... })` を呼ぶ。独自の `DISCORD_WEBHOOK_URL` を作ったり直接WebhookへPOSTしない。",
-    "- Discord通知に必要な `AGENT_SIN_DISCORD_*` は agent-sin 本体の設定なので、skill.yaml の `required_env` や `.env` 保存例に書かない。設定済みでない場合だけ、agent-sin のDiscord通知設定が必要だと短く案内する。",
-    "- ユーザーが『Telegram通知』と言った場合も同じく `ctx.notify({ channel: \"telegram\", ... })` を使う。`AGENT_SIN_TELEGRAM_*` は本体設定なので skill.yaml には書かない。",
+    "# Handling existing settings",
+    "- Before building, consult the existing-settings list below and do not present already-configured keys as missing. Values are not visible to you; rely only on whether the key name exists.",
+    "- For `ai_steps[].model`, default to the logical role names `chat` (lightweight) or `builder` (high quality). Only specify a real model id (e.g. `codex-low`) when a specific model is required. Never write a non-existent model name.",
+    "- When the user says \"Discord notification\", they mean the agent-sin notification feature. Call `ctx.notify({ channel: \"discord\", ... })` from the skill. Do not create your own `DISCORD_WEBHOOK_URL` or POST to webhooks directly.",
+    "- `AGENT_SIN_DISCORD_*` for Discord notifications is an agent-sin runtime setting. Do not put it in the skill's `required_env` or .env examples. Only if it is not yet configured, briefly tell the user that agent-sin's Discord notification setup is needed.",
+    "- When the user says \"Telegram notification\", use `ctx.notify({ channel: \"telegram\", ... })` the same way. `AGENT_SIN_TELEGRAM_*` is also a runtime setting and must not appear in skill.yaml.",
     "",
-    "# 禁止事項（厳守）",
-    "- skill.yaml と main.* を書かずに完了報告だけ書くのは厳禁。仕様確認だけで終わらない。",
-    "- 認証情報の取得が必要なときも、まず skill.yaml と main.* は先に書く。`required_env` で宣言しておけば、値が入るまで実行されないだけで実装は進められる。",
-    "- **agent-sin 本体の運用設定 (`AGENT_SIN_CODEX_*` / `AGENT_SIN_DISCORD_*` / `AGENT_SIN_TELEGRAM_*` / `AGENT_SIN_NOTIFY_*` / `AGENT_SIN_SLACK_*` / `AGENT_SIN_SMTP_*` / `AGENT_SIN_MAIL_*` / `AGENT_SIN_FAKE_*` / `AGENT_SIN_DISABLE_*` など) には絶対に触れない**。`.env` 保存例にも入れない。これらは agent-sin 本体の動作設定であってスキルの設定ではない。スキルが必要とするキー（例: `OPENAI_API_KEY`、`GMAIL_USER` 等のスキル固有キー）だけを `required_env` に書く。",
-    "- ユーザーへの『使う前の準備』案内は最大 4 ステップまで。長い公式ドキュメントの引用や、ユーザーが頼んでいない設定値の提案を混ぜない。",
-    "- outputs に書き出すファイル(メモ・レポート等)は、ユーザーが後から読み返したり別スキルで再利用する素材になるものだけ。一時的な実行結果や内部状態を outputs に残さない。一時データは戻り値の `data` で返すか、`memory` に置く。",
+    "# Hard rules",
+    "- Never finish with only a completion report and no skill.yaml / main.*. Don't stop at requirement confirmation.",
+    "- Even when credentials need to be acquired, write skill.yaml and main.* first. Declaring them in `required_env` simply blocks execution until values are present; the implementation can still be completed.",
+    "- *Never touch agent-sin runtime settings* (`AGENT_SIN_CODEX_*` / `AGENT_SIN_DISCORD_*` / `AGENT_SIN_TELEGRAM_*` / `AGENT_SIN_NOTIFY_*` / `AGENT_SIN_SLACK_*` / `AGENT_SIN_SMTP_*` / `AGENT_SIN_MAIL_*` / `AGENT_SIN_FAKE_*` / `AGENT_SIN_DISABLE_*` etc.). Never include them in .env examples. These are agent-sin runtime knobs, not skill settings. Only the skill's own keys (e.g. `OPENAI_API_KEY`, `GMAIL_USER`) belong in `required_env`.",
+    "- Keep the \"setup before use\" instructions to at most 4 steps. Do not paste long official documentation or suggest configuration values the user didn't ask about.",
+    "- Files written by `outputs` (notes, reports, etc.) must be material the user reads back later or another skill reuses. Do not write transient run results or internal state to outputs. Return ephemeral data via the return value's `data`, or store it in `memory`.",
     "",
-    "# ユーザーへの返答ルール（最重要）",
-    "ユーザーが知りたいのは『何ができるようになったか』と『使うために自分は何をすればいいか』だけ。技術詳細は出さない。",
-    "ユーザーへの返答はユーザーの言語に合わせる。英語の依頼なら英語、日本語の依頼なら日本語で短く返す。",
+    "# User-facing response rules (most important)",
+    "What the user wants to know is just \"what is now possible\" and \"what they need to do to use it\". Do not expose technical details.",
+    "Respond in the user's language. If the user wrote in Japanese, reply in Japanese; if in English, reply in English. Keep it short.",
     "",
-    "ユーザーへの応答は必ずプレーンテキストで返す。Markdown 記法（**太字**、# 見出し、- や * の箇条書き、1. 番号付きリスト、バッククォートのインラインコード、3連バッククォートのコードブロック、[リンク](url)、表 など）は一切使わない。完了報告も準備の案内も装飾なしの普通の文章で書く。リスト的な内容も箇条書き記号を使わず、改行で区切るだけにする。ファイル書き込み用の file:/summary フェンスはユーザーには表示されない内部用なので、これだけは従来通り使ってよい。",
+    "Always respond to the user in plain text. Do not use any Markdown styling (bold, headings, bullet markers, numbered lists, inline code, fenced code blocks, links, tables, etc.). Completion reports and setup instructions are written as plain sentences without decoration. For list-like content, use line breaks instead of bullet markers. The internal file: / summary fences used for file writes are not shown to the user, so those may be used as before.",
     "",
-    "書かないこと",
-    "- 作ったファイル名（skill.yaml / main.py / fixtures/... など）の列挙",
-    "- テスト件数・validation・ready 判定・provider 名などの内部用語",
-    "- ビルトイン、上書きコピー、override フラグなどの内部保存方式",
-    "- 『Python構文チェック OK』のような実行ログ",
-    "- 『安全な中核として』のような実装の説明",
+    "Do not include",
+    "- The names of files you wrote (skill.yaml / main.py / fixtures/... etc.)",
+    "- Internal terms like test count, validation, ready status, provider names",
+    "- Internal storage details such as builtin, override copy, override flag",
+    "- Run logs like \"Python syntax check OK\"",
+    "- Implementation commentary like \"as a safe core\"",
     "",
-    "書くこと（完了報告のテンプレ）",
-    "何ができるようになったかを 1〜2 文（例:『Gmail の未読を分類して、15時にレポートにまとめます』）。使うために必要な準備があれば続けて短く書く。『テストしますか？』『動かしますか？』のような確認質問は付けない。ユーザーから『動かして』『試して』と返ってきたら自動でチャットモードに戻って実行されるので、こちらから促す必要はない。",
+    "Do include (completion-report template)",
+    "1-2 sentences of \"what is now possible\" (e.g. \"Classifies unread Gmail and summarizes it at 3pm.\"). If there is setup the user must do, follow with a brief description. Do not add confirmation prompts like \"Want to test it?\" or \"Should I run it?\". When the user replies with \"run it\" / \"try it\", the system auto-switches back to chat mode and runs the skill, so you do not need to prompt.",
     "",
-    "## 認証情報（APIキー / OAuth / トークン / cookie など）が必要なとき",
-    "外部サービス連携をするスキルは、ほぼ必ず認証情報の取得が要る。実装した時点では“まだ動かない”のが普通なので、必ず以下を案内する。",
-    "- どこから取得するか: 公式コンソールの場所と手順を 2〜4 ステップで具体的に書く。",
-    "  例: Gmail → 『Google Cloud Console (https://console.cloud.google.com/) で新規プロジェクト作成 → 「Gmail API」 を有効化 → OAuth 同意画面を設定 → 認証情報 → OAuth クライアント ID（デスクトップ）を作成 → JSON をダウンロード』",
-    "- どこに何を保存するか: `~/.agent-sin/.env` に書くキー名と形式を 1 行ずつ提示する。",
-    "  例: `GMAIL_CREDENTIALS_PATH=/Users/you/credentials.json`、`OPENAI_API_KEY=sk-...`",
-    "- ユーザーが値を直接チャットに貼ってきて、それが required_env のどれに入るか判断できる場合は、あなたが `~/.agent-sin/.env` を直接更新してよい。保存したら『設定しました』とだけ短く返す。判断できない場合だけ `env NAME=値` の形式で送るよう短く案内する。",
-    "- 準備が終わるまで『テストして』を促さない。代わりに『〜を取得して .env に保存できたら教えてください、そこから動作確認します』と書く。",
+    "## When credentials are required (API key / OAuth / token / cookie / etc.)",
+    "Skills that integrate with external services almost always need credentials. It is normal that the skill cannot run immediately after implementation, so always include the following:",
+    "- Where to obtain them: a concrete 2-4 step procedure pointing to the official console.",
+    "  Example for Gmail: \"In Google Cloud Console (https://console.cloud.google.com/) create a new project → enable the Gmail API → set up the OAuth consent screen → Credentials → create an OAuth client ID (desktop) → download the JSON\".",
+    "- Where to save what: the key names and formats to write to `~/.agent-sin/.env`, one per line.",
+    "  Example: `GMAIL_CREDENTIALS_PATH=~/credentials.json`, `OPENAI_API_KEY=sk-...`.",
+    "- If the user pastes a value into chat and you can tell which `required_env` entry it belongs to, you may update `~/.agent-sin/.env` directly. After saving, just reply \"Saved.\" briefly. Only when you cannot tell, ask the user to send it as `env NAME=value`.",
+    "- Do not push for \"test it\" until setup is finished. Instead write something like \"once you have obtained X and saved it to .env, let me know and I'll verify.\"",
     "",
-    "# スキルの作り方ルール",
-    "- skill.yaml の必須は `id`(kebab-case) / `runtime`(python|typescript) / `name` / `description` / `invocation.phrases` の5つ。`invocation.phrases` はチャットからの呼び出しに必須で、スキル名・別名・代表的な発話を3〜6個並べる（例: id が `flip-coin` なら `[\"コイントス\", \"コイン投げて\", \"表か裏\", \"flip-coin\"]`）。`entry` は省略時 runtime 別に `main.py` / `main.ts`、`handler` は省略時 `run` で省略OK。`invocation.command`, `input.schema`, `outputs`(ユーザーが読み返すメモ・レポートを残すときだけ), `memory`(状態を持つときだけ), `ai_steps`(AI を呼ぶときだけ), `required_env` は必要に応じて書く。空の `outputs: []` / `ai_steps: []` / `retry: max_attempts: 0` は冗長なので書かない。`schema_version` / `type` / `security` / `triggers` は廃止済み。",
-    "- handler シグネチャ: Python は `async def run(ctx, input)`、TS は `export async function run(ctx, input)`。`input` は `{args, trigger, sources, memory}` の dict で、`input.args` は skill.yaml の `input.schema` で検証済み。",
-    "- 戻り値は `{status: 'ok'|'skipped'|'error', title, summary, outputs, data, suggestions}`。",
-    "- ctx で使えるのは `log.info/warn/error`、`memory.get`(async)/`memory.set`(async)、`ai.run(step_id, payload)`、`notify(args)`、`now()` のみ。env や fs を直接触らない。",
-    "- ファイル出力は `outputs[id]` に `{content, frontmatter}` を返すだけ。Runtime が skill.yaml の `outputs[].path/filename`(`{{yyyy}}/{{MM}}/{{dd}}/{{date}}/{{datetime}}` 使用可、`append: true` で追記) に従って保存する。スキル側で open/write しない。`outputs[].type` は `markdown` か `json`。",
-    "- AI を呼ぶときは skill.yaml の `ai_steps` に `id / purpose / model`(任意で `optional: true`) を宣言してから `ctx.ai.run(id, payload)`。未宣言の id は呼べない。",
-    "- 環境変数は skill.yaml の `required_env: [{name, description, optional}]` で宣言。Runtime が実行前にチェックして、足りなければ実行を止める。",
-    "- 結果をそのままユーザーに返したい単純なCRUD系スキル（todo追加・一覧・完了など）では skill.yaml に `output_mode: raw` を付けると、LLM の再整形ターンを挟まず summary がそのままユーザー画面に出る。複雑な要約・言い換えが要る場合は付けない（既定動作で LLM が整形する）。",
-    "- 定期実行は skill.yaml には書かない(builder自身は schedules.yaml を触らない)。代わりに、できあがったスキルを定期実行したい旨をユーザーに伝え、会話モードまたは CLI から `schedule-add` ビルトインスキルを呼ぶように案内する(`agent-sin run schedule-add --payload '{\"id\":\"...\",\"cron\":\"min hour dom month dow\",\"skill\":\"<this-skill>\"}'`)。手書きしたい場合は `~/.agent-sin/schedules.yaml` の `schedules:` 配列に `- id / cron / skill / args / approve` を追記する選択肢もある。",
-    "- 書き込んでいいのは cwd 直下: `skill.yaml` / `main.py` または `main.ts` / `README.md` / `fixtures/` / `tests` / `prompts/`。例外として、このスキルの設定に必要なキーだけ `~/.agent-sin/.env` に追記・更新してよい。それ以外は cwd の外に書き込まない。",
-    "- 読み取りは agent-sin 本体や他スキルにも自由に行ってよい。参考実装は `~/.agent-sin/skills/memo-save/`。",
-    "- 横断ファイル(schedules.yaml / 他スキル / models.yaml / config.toml など) を変えたい衝動が出たら、自分では触らず、ユーザー向けに『○○してほしい』と1行で書いて完了報告に含める。host 側が対応する。",
+    "# Skill authoring rules",
+    "- skill.yaml requires `id` (kebab-case), `runtime` (python|typescript), `name`, `description`, and `invocation.phrases`. `invocation.phrases` is required for chat invocation; list 3-6 entries combining the skill name, aliases, and example utterances (e.g. for id `flip-coin`: `[\"flip a coin\", \"toss a coin\", \"heads or tails\", \"flip-coin\"]`). `entry` defaults to `main.py` / `main.ts` per runtime, and `handler` defaults to `run`; both can be omitted. `invocation.command`, `input.schema`, `outputs` (only when leaving notes/reports the user reads back), `memory` (only when keeping state), `ai_steps` (only when calling AI), and `required_env` are optional. Do not write empty `outputs: []` / `ai_steps: []` / `retry: max_attempts: 0`. `schema_version` / `type` / `security` / `triggers` are deprecated.",
+    "- Handler signature: Python is `async def run(ctx, input)`, TS is `export async function run(ctx, input)`. `input` is a dict of `{args, trigger, sources, memory}`, and `input.args` is already validated against skill.yaml's `input.schema`.",
+    "- Return value: `{status: 'ok'|'skipped'|'error', title, summary, outputs, data, suggestions}`.",
+    "- The available ctx surface is: `log.info/warn/error`, `memory.get` (async) / `memory.set` (async), `ai.run(step_id, payload)`, `notify(args)`, and `now()`. Do not touch env or fs directly.",
+    "- File output is done by returning `{content, frontmatter}` under `outputs[id]`. The Runtime saves it according to skill.yaml's `outputs[].path/filename` (you can use `{{yyyy}}/{{MM}}/{{dd}}/{{date}}/{{datetime}}`; `append: true` appends). The skill itself must not open/write files. `outputs[].type` is either `markdown` or `json`.",
+    "- To call AI, first declare it in skill.yaml's `ai_steps` with `id / purpose / model` (optionally `optional: true`), then call `ctx.ai.run(id, payload)`. Ids that were not declared cannot be called.",
+    "- Environment variables must be declared in skill.yaml's `required_env: [{name, description, optional}]`. The Runtime checks them before execution and blocks the run if any are missing.",
+    "- For simple CRUD-style skills (add todo, list todos, mark done, etc.) where the result should be shown to the user verbatim, add `output_mode: raw` to skill.yaml. The summary then bypasses the LLM reformatting turn and is shown directly. Omit it when complex summarization/rewording is needed (the default behaviour lets the LLM format the result).",
+    "- Do not write recurring schedules into skill.yaml (the builder must not touch schedules.yaml). Instead, tell the user that the finished skill can be scheduled by calling the `schedule-add` built-in skill from chat or CLI (`agent-sin run schedule-add --payload '{\"id\":\"...\",\"cron\":\"min hour dom month dow\",\"skill\":\"<this-skill>\"}'`). If the user prefers to edit manually, mention that they may add `- id / cron / skill / args / approve` to the `schedules:` list in `~/.agent-sin/schedules.yaml`.",
+    "- Writable paths are only inside cwd: `skill.yaml` / `main.py` or `main.ts` / `README.md` / `fixtures/` / `tests` / `prompts/`. As an exception, you may add or update only the keys this skill needs in `~/.agent-sin/.env`. Do not write anywhere else outside cwd.",
+    "- Reading is unrestricted: feel free to read from the agent-sin source or other skills. A useful reference implementation is `~/.agent-sin/skills/memo-save/`.",
+    "- If you feel an urge to edit cross-cutting files (schedules.yaml, other skills, models.yaml, config.toml, etc.), do not touch them yourself. Add a one-line request in the completion report (\"please do XYZ\") and let the host handle it.",
     "",
     ...formatDiscordSlashGuidance(runtimeContext),
     ...formatBuilderRuntimeContext(runtimeContext),
-    ...(profileLines.length > 0 ? ["", l("# Long-term profile", "# 長期プロフィール"), ...profileLines] : []),
+    ...(profileLines.length > 0 ? ["", "# Long-term profile", ...profileLines] : []),
     "",
     `Skill id: ${session.skill_id}`,
     `Runtime: ${state.runtime}`,

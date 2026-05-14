@@ -76,8 +76,9 @@ export function getAiProvider(): AiProviderFn {
   return providerOverride || runChatCompletion;
 }
 
-// skill.yaml の `ai_steps[].model` には実モデル ID（codex-low 等）と論理ロール名（chat / builder）の両方を許容する。
-// 論理ロール名で書かれた場合は models.yaml の `roles` を引いて実モデル ID に解決する。
+// `ai_steps[].model` in skill.yaml accepts both concrete model ids (e.g.
+// codex-low) and logical role names (chat / builder). Role names are resolved
+// to a concrete model id via `roles` in models.yaml.
 export function resolveModelId(modelId: string, models: ModelConfig): string {
   if (models.models[modelId]) {
     return modelId;
@@ -125,7 +126,7 @@ export async function runChatCompletion(config: AppConfig, request: AiProviderRe
     }
     throw new AiProviderError(l(`Unsupported api provider: ${provider}`, `未対応の API プロバイダです: ${provider}`), request.model_id, provider);
   }
-  // "cli" は新名称、"login" は旧形式の互換受け入れ。
+  // "cli" is the current name; "login" is accepted for backward compatibility.
   if (entry.type === "cli" || entry.type === "login") {
     if (entry.provider === "codex") {
       return dispatchCodex(request, entry);

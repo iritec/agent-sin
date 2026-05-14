@@ -6,7 +6,6 @@ import {
   readProfileMemoryForPrompt,
   type ProfileMemoryFiles,
 } from "./profile-memory.js";
-import { l, lLines } from "./i18n.js";
 
 export interface PlannerHandoffTurn {
   role: "user" | "assistant" | "tool";
@@ -50,57 +49,32 @@ export async function planSkill(config: AppConfig, ctx: PlanContext): Promise<Pl
 }
 
 function buildPlannerMessages(ctx: PlanContext, profileMemory?: ProfileMemoryFiles): AiMessage[] {
-  const system = lLines(
-    [
-      "You are a skill design assistant.",
-      "The user may not be an engineer. From the conversation and the user's requirements, write a short plain-language plan that lets them immediately understand what the skill will do.",
-      "",
-      "Goal: before implementation starts, the user should be able to decide 'this is fine' or 'I want to change this'.",
-      "Do not use technical terms such as manifest, runtime, manual/cron, or AI step. Use everyday language.",
-      "",
-      "Most important rules:",
-      "- Treat requirements already stated in <request> or <chat_history> as facts, not guesses, and carry them into the plan.",
-      "- If the user already said specific things such as 'every hour', 'summarize at 3pm', 'list spam/read/not urgent', or 'improve by learning', include them directly and do not ask again.",
-      "- For points the user has not mentioned, choose reasonable defaults and put them in the plan. It is fine to decide; the user can correct it.",
-      "- Only if you truly need confirmation, add at most 1 or 2 short questions at the end. Zero questions is preferred.",
-      "- Do not ask again about already-stated content by turning it into examples or multiple-choice questions.",
-      "- If <previous_plan> is provided, do not repeat the same questions already asked there. Reflect answers if present; otherwise choose defaults and proceed.",
-      "",
-      "Writing style:",
-      "- Free format. Do not force a fixed template or headings such as '## What to do'.",
-      "- Keep it short and focused, roughly a few lines to 10 lines.",
-      "- Put confirmation questions at the end only if needed. Omit them when not needed.",
-      "",
-      "Other:",
-      "- For edits (type=edit), respect the current settings and make clear what will change.",
-      "- The output is shown directly on screen. Do not add surrounding explanation or ``` fences.",
-    ],
-    [
-      "あなたはスキル設計のアシスタントです。",
-      "相手はエンジニアではない一般ユーザーです。これまでの会話とユーザーの要件から、",
-      "これから作る／直すスキルが何をするのかを一目で確認できる、短い案内を書いてください。",
-      "",
-      "目的: 中身を作る前に、ユーザーが『これでいい / ここを直したい』と判断できることです。",
-      "専門用語（manifest, runtime, manual/cron, AI step など）は使わず、ふだんの言葉で書いてください。",
-      "",
-      "もっとも大事なルール:",
-      "- ユーザーが <request> や <chat_history> で既に書いている要件は、推測ではなく『すでに伝えられた事実』としてそのままプランに反映する。",
-      "- 例えばユーザーが『1時間ごと』『15時にサマリ』『迷惑/既読/急がないをリスト』『学習で改善』のように具体的に言っているなら、それをそのまま書く。聞き返さない。",
-      "- ユーザーがまだ言及していない点は、合理的なデフォルトを置いてプランに書く。決め打ちで構わない、ユーザーが直したくなれば直してくれる。",
-      "- どうしても本人に確認したい点があるときだけ、最後に最大 1〜2 個に絞って短く書く。0個でもよい。聞き返しゼロを目指す。",
-      "- 既出の内容を『例：…』として聞き返したり、選択肢にして再質問するのは禁止。",
-      "- <previous_plan> が与えられた場合、そこで一度確認した同じ点をもう一度聞かない。前回の確認に答えがあればプランに反映、答えがなくてもデフォルトで埋めて先へ進む。",
-      "",
-      "書き方:",
-      "- 自由フォーマット。決まったテンプレートや見出し（## やること など）に当てはめない。",
-      "- 短く、要点だけ。数行〜10行程度。",
-      "- 確認したい点があれば最後にまとめて短く。なければ書かない。",
-      "",
-      "その他:",
-      "- 編集 (type=edit) のときは、いまの設定を尊重して『何を変えるか』が伝わるように書く。",
-      "- 出力はそのまま画面に表示するテキスト。前後の説明や ``` は付けない。",
-    ],
-  ).join("\n");
+  const system = [
+    "You are a skill design assistant.",
+    "The user may not be an engineer. From the conversation and the user's requirements, write a short plain-language plan that lets them immediately understand what the skill will do.",
+    "",
+    "Output language: write the plan in the same language as the user's most recent message. If the user wrote in Japanese, write the plan in Japanese; otherwise write in English.",
+    "",
+    "Goal: before implementation starts, the user should be able to decide 'this is fine' or 'I want to change this'.",
+    "Do not use technical terms such as manifest, runtime, manual/cron, or AI step. Use everyday language.",
+    "",
+    "Most important rules:",
+    "- Treat requirements already stated in <request> or <chat_history> as facts, not guesses, and carry them into the plan.",
+    "- If the user already said specific things such as 'every hour', 'summarize at 3pm', 'list spam/read/not urgent', or 'improve by learning', include them directly and do not ask again.",
+    "- For points the user has not mentioned, choose reasonable defaults and put them in the plan. It is fine to decide; the user can correct it.",
+    "- Only if you truly need confirmation, add at most 1 or 2 short questions at the end. Zero questions is preferred.",
+    "- Do not ask again about already-stated content by turning it into examples or multiple-choice questions.",
+    "- If <previous_plan> is provided, do not repeat the same questions already asked there. Reflect answers if present; otherwise choose defaults and proceed.",
+    "",
+    "Writing style:",
+    "- Free format. Do not force a fixed template or headings such as '## What to do'.",
+    "- Keep it short and focused, roughly a few lines to 10 lines.",
+    "- Put confirmation questions at the end only if needed. Omit them when not needed.",
+    "",
+    "Other:",
+    "- For edits (type=edit), respect the current settings and make clear what will change.",
+    "- The output is shown directly on screen. Do not add surrounding explanation or ``` fences.",
+  ].join("\n");
 
   const messages: AiMessage[] = [{ role: "system", content: system }];
 
@@ -143,14 +117,9 @@ function buildPlannerMessages(ctx: PlanContext, profileMemory?: ProfileMemoryFil
     contextLines.push("<refine_request>");
     contextLines.push(truncate(ctx.refine_input, 600));
     contextLines.push("</refine_request>");
-    contextLines.push(
-      l(
-        "→ Update the plan by applying <refine_request> to <previous_plan>.",
-        "→ <previous_plan> をベースに <refine_request> を反映して計画を更新してください。",
-      ),
-    );
+    contextLines.push("→ Update the plan by applying <refine_request> to <previous_plan>.");
   } else {
-    contextLines.push(l("→ Create the initial plan from the information above.", "→ 上記から最初の計画を立ててください。"));
+    contextLines.push("→ Create the initial plan from the information above.");
   }
   messages.push({ role: "user", content: contextLines.join("\n") });
   return messages;
