@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.7] — 2026-05-14
+
+### Fixed
+
+- `agent-sin import` now rewrites absolute paths inside the restored `config.toml` (and legacy `config.yaml`) so the imported workspace points at the current machine's `~/.agent-sin` instead of the source machine's. Previously, restoring a backup on a different user account failed with `EACCES: permission denied, mkdir '/Users/<source>'`.
+
+---
+
 ## [0.1.6] — 2026-05-14
 
 ### Fixed

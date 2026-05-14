@@ -1,8 +1,17 @@
 import { spawn } from "node:child_process";
-import { copyFile, lstat, mkdir, mkdtemp, readdir, rename, rm, stat } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { defaultWorkspace } from "./config.js";
+import {
+  configPath,
+  defaultWorkspace,
+  legacyConfigPath,
+  normalizeConfig,
+  parseTomlConfigWithLegacy,
+  writeConfig,
+  type AppConfig,
+} from "./config.js";
+import YAML from "yaml";
 import { l } from "./i18n.js";
 
 const DEFAULT_INCLUDE = [
@@ -132,10 +141,55 @@ export async function importWorkspace(options: ImportOptions): Promise<ImportRes
 
     await mkdir(workspace, { recursive: true });
     await copySafeTree(tempRoot, workspace);
+    // Backups carry the absolute paths of the source machine. Rewrite them so
+    // the imported workspace points at this machine's locations.
+    await rewriteImportedConfigPaths(workspace);
 
     return { workspace, archivePath, entries, backupPath, dryRun: false };
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
+  }
+}
+
+async function rewriteImportedConfigPaths(workspace: string): Promise<void> {
+  const tomlFile = configPath(workspace);
+  if (await pathExists(tomlFile)) {
+    try {
+      const raw = await readFile(tomlFile, "utf8");
+      const parsed = parseTomlConfigWithLegacy(raw);
+      const rewritten = normalizeConfig({
+        ...parsed.config,
+        workspace,
+        notes_dir: path.join(workspace, "notes"),
+        skills_dir: path.join(workspace, "skills"),
+        memory_dir: path.join(workspace, "memory"),
+        index_dir: path.join(workspace, "index"),
+        logs_dir: path.join(workspace, "logs"),
+      });
+      await writeConfig(tomlFile, rewritten);
+    } catch {
+      // Silently skip when the imported config.toml cannot be parsed; the
+      // user can still manually edit it.
+    }
+  }
+  const yamlFile = legacyConfigPath(workspace);
+  if (await pathExists(yamlFile)) {
+    try {
+      const raw = await readFile(yamlFile, "utf8");
+      const parsed = (YAML.parse(raw) as Partial<AppConfig>) || {};
+      const rewritten = {
+        ...parsed,
+        workspace,
+        notes_dir: path.join(workspace, "notes"),
+        skills_dir: path.join(workspace, "skills"),
+        memory_dir: path.join(workspace, "memory"),
+        index_dir: path.join(workspace, "index"),
+        logs_dir: path.join(workspace, "logs"),
+      };
+      await writeFile(yamlFile, YAML.stringify(rewritten), "utf8");
+    } catch {
+      // ignore - legacy yaml is best-effort
+    }
   }
 }
 
