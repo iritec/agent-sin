@@ -15,6 +15,18 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.4] — 2026-05-14
+
+### Added
+
+- `agent-sin --version` / `-v` / `agent-sin version` now print the installed version. Previously these printed an "unknown command" error.
+
+### Fixed
+
+- Update-notifier now refreshes its cache when the installed version has caught up to or passed the previously cached "latest". Previously, after upgrading to the cached latest, the cache stayed valid for 24 hours and hid the banner for the next release. The CLI also fetches synchronously (with a short timeout) on the very first run so the banner appears immediately when a new version is available.
+
+---
+
 ## [0.1.3] — 2026-05-14
 
 ### Added

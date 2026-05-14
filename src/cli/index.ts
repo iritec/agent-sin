@@ -118,6 +118,11 @@ type Options = Record<string, OptionValue> & { _: string[] };
 async function main(): Promise<number> {
   const [command, ...args] = process.argv.slice(2);
 
+  if (command === "--version" || command === "-v" || command === "version") {
+    console.log(agentSinVersion());
+    return 0;
+  }
+
   try {
     const dotenv = await loadDotenv();
     if (dotenv.permission_warning) {

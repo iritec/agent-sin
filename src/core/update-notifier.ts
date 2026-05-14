@@ -119,13 +119,22 @@ function isDisabled(): boolean {
   return flag === "1" || flag === "true" || flag === "yes";
 }
 
+function isCacheStale(cache: UpdateCache, current: string): boolean {
+  if (!cache.latestVersion) return true;
+  // The cached "latest" trailing the installed version means we upgraded past
+  // the previously seen latest. Re-check immediately rather than waiting 24h.
+  if (compareSemver(cache.latestVersion, current) <= 0) return true;
+  const lastChecked = cache.lastCheckedAt ? Date.parse(cache.lastCheckedAt) : 0;
+  if (!Number.isFinite(lastChecked)) return true;
+  return Date.now() - lastChecked >= CHECK_INTERVAL_MS;
+}
+
 export function scheduleUpdateCheck(workspace: string = defaultWorkspace()): void {
   if (isDisabled()) return;
   void (async () => {
     const cache = await loadCache(workspace);
-    const now = Date.now();
-    const lastChecked = cache.lastCheckedAt ? Date.parse(cache.lastCheckedAt) : 0;
-    if (Number.isFinite(lastChecked) && now - lastChecked < CHECK_INTERVAL_MS) return;
+    const current = await readCurrentVersion();
+    if (!isCacheStale(cache, current)) return;
     const latest = await fetchLatestVersion();
     if (!latest) return;
     await saveCache(workspace, {
@@ -140,9 +149,23 @@ export async function consumeUpdateBanner(
   workspace: string = defaultWorkspace(),
 ): Promise<string | null> {
   if (isDisabled()) return null;
-  const cache = await loadCache(workspace);
-  if (!cache.latestVersion) return null;
+  let cache = await loadCache(workspace);
   const current = await readCurrentVersion();
+  // If the cache is stale (missing or trailing installed version), fetch
+  // synchronously with a short timeout so the user sees the banner on the
+  // first run after publishing a new version.
+  if (isCacheStale(cache, current)) {
+    const latest = await fetchLatestVersion();
+    if (latest) {
+      cache = {
+        ...cache,
+        lastCheckedAt: new Date().toISOString(),
+        latestVersion: latest,
+      };
+      await saveCache(workspace, cache);
+    }
+  }
+  if (!cache.latestVersion) return null;
   if (compareSemver(cache.latestVersion, current) <= 0) return null;
   const today = todayKey();
   if (cache.bannerShownDate === today) return null;
