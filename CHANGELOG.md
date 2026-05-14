@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.11] — 2026-05-14
+
+### Fixed
+
+- The interactive startup banner now uses a plain `AGENT-SIN` wordmark on Windows. The previous half-block terminal logo could render slightly misaligned in Windows Terminal depending on font and line-height settings.
+
+---
+
 ## [0.1.10] — 2026-05-14
 
 ### Fixed
