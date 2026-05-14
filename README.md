@@ -73,6 +73,12 @@ Full walkthrough: [Getting Started](https://agent.shingoirie.com/getting-started
 - [Configuration](https://agent.shingoirie.com/configuration) — settings and API keys
 - [Gateway & Ops](https://agent.shingoirie.com/operations) — always-on, schedules, notifications, backup
 - [Discord](https://agent.shingoirie.com/discord) · [Telegram](https://agent.shingoirie.com/telegram) — channel integrations
+- [Versioning](https://agent.shingoirie.com/versioning) — compatibility and release policy
+- [Changelog](CHANGELOG.md) — release history
+
+## Also by the author
+
+[**KingCoding**](https://kingcode.shingoirie.com/en) — Claude Code and Codex, in one simple UI. A Mac app that unifies the two coding agents, runs tasks hands-free in King Mode, and lets you check progress from your phone.
 
 ## License
 
