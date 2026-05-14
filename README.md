@@ -55,8 +55,10 @@ curl -fsSL https://agent.shingoirie.com/install.sh | bash
 **Windows (PowerShell)**
 
 ```powershell
-irm https://agent.shingoirie.com/install.ps1 | iex
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://agent.shingoirie.com/install.ps1 | iex"
 ```
+
+If you downloaded `install.ps1` first, run it with `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1` to avoid Windows' default script policy for that one run.
 
 The installer sets up `agent-sin`, runs initial setup, and registers a login service. Workspace data lives in `~/.agent-sin/`.
 

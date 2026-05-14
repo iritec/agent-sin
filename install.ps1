@@ -1,11 +1,10 @@
 # Agent-Sin installer for Windows.
 #
 # Usage:
-#   irm https://<install-host>/install.ps1 | iex
-#   $args = @('--yes'); irm https://<install-host>/install.ps1 | iex
+#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://<install-host>/install.ps1 | iex"
 #
 # Or after downloading:
-#   powershell -ExecutionPolicy Bypass -File .\install.ps1 -Yes
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Yes
 #
 # Equivalent of install.sh: installs the agent-sin command globally,
 # runs `agent-sin setup`, and registers the Task Scheduler logon task.
@@ -41,8 +40,8 @@ if (Use-Japanese) {
 Agent-Sin installer (Windows)
 
 使い方:
-  irm https://<install-host>/install.ps1 | iex
-  powershell -ExecutionPolicy Bypass -File .\install.ps1 [-Yes] [-Model <id>] [-Builder <id>]
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://<install-host>/install.ps1 | iex"
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-Yes] [-Model <id>] [-Builder <id>]
 
 オプション:
   -Yes               setup をプロンプトなしで実行
@@ -58,8 +57,8 @@ Agent-Sin installer (Windows)
 Agent-Sin installer (Windows)
 
 Usage:
-  irm https://<install-host>/install.ps1 | iex
-  powershell -ExecutionPolicy Bypass -File .\install.ps1 [-Yes] [-Model <id>] [-Builder <id>]
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://<install-host>/install.ps1 | iex"
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-Yes] [-Model <id>] [-Builder <id>]
 
 Options:
   -Yes               Run setup without prompts
