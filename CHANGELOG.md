@@ -15,6 +15,19 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.1] — 2026-05-14
+
+### Fixed
+
+- Locale auto-detection now prefers the OS-level system locale (Intl) over the shell's `LANG`/`LC_ALL`. A Mac switched to English in System Settings could still inherit `LANG=ja_JP.UTF-8` from a stale shell environment, which persisted `locale = "ja"` into `config.toml` on first setup and pinned the UI to Japanese.
+  - If you already have a workspace with the wrong locale, remove the `locale` line from `~/.agent-sin/config.toml` and rerun, or start with `AGENT_SIN_LOCALE=en agent-sin ...`.
+
+### Changed
+
+- Windows installer one-liner now runs through `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm … | iex"` so the default execution policy does not block the install.
+
+---
+
 ## [0.1.0] — 2026-05-14
 
 ### Added
@@ -25,6 +38,7 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 - Profile memory (`soul.md` / `user.md` / `memory.md`) with automatic promotion of daily notes (`daily-memory-promotion`).
 - `profile-save` built-in skill.
 - `install.sh` for one-shot setup.
+- Windows install guidance uses a one-run PowerShell execution-policy bypass, so default script policy does not block first install.
 - Compatibility policy ([versioning](https://agent.shingoirie.com/versioning)) and this changelog.
 
 ### Changed
