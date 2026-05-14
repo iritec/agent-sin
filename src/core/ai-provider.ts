@@ -817,7 +817,14 @@ async function spawnCli(
   cwd?: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"], cwd });
+    // Windows wraps CLI tools as .cmd / .bat shims (codex.cmd, claude.cmd).
+    // Node's spawn cannot exec those without going through a shell, so we
+    // enable shell only on win32. Posix paths keep direct exec for safety.
+    const child = spawn(bin, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      cwd,
+      shell: process.platform === "win32",
+    });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     let stderrLine = "";

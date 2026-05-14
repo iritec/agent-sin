@@ -153,8 +153,11 @@ export class CodexAppServerSession {
   }
 
   private async start(): Promise<void> {
+    // Windows wraps the codex CLI as a .cmd shim; Node's spawn cannot exec
+    // those without a shell, so we enable shell only on win32.
     const child = spawn(this.options.bin, this.options.args, {
       stdio: ["pipe", "pipe", "pipe"],
+      shell: process.platform === "win32",
     });
     this.child = child;
     this.exitReason = null;

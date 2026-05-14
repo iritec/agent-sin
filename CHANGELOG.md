@@ -15,6 +15,14 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.6] — 2026-05-14
+
+### Fixed
+
+- On Windows, launching the Codex CLI (and Claude Code CLI) failed with `spawn codex ENOENT` because Node's `spawn` cannot resolve the `.cmd` shim that npm-installed CLIs use on Windows. Both the one-shot CLI bridge and the long-running `codex app-server` now enable `shell: true` only on `win32`, so the shim is found correctly. POSIX paths still use direct exec.
+
+---
+
 ## [0.1.5] — 2026-05-14
 
 ### Changed
