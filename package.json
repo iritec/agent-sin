@@ -1,6 +1,6 @@
 {
   "name": "agent-sin",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Program Skill-first personal AI agent OS CLI.",
   "type": "module",
   "license": "MIT",
