@@ -15,6 +15,19 @@ See the [compatibility policy](https://agent.shingoirie.com/versioning) for deta
 
 ---
 
+## [0.1.12] — 2026-05-15
+
+### Added
+
+- `/memo` slash command on Discord (`add` / `list` / `delete`), plus a new built-in `memo-list` skill that backs it.
+
+### Fixed
+
+- Telegram replies no longer leak internal `skill-call` / `agent-sin-build-suggestion` fence blocks. Both the live draft preview and the final sent message now strip these control blocks, including malformed variants where the language tag ends up on its own line.
+- Chat skill invocation is more tolerant of malformed `skill-call` blocks, and exact read-only triggers such as `todolist` run without waiting for the model to format a call.
+
+---
+
 ## [0.1.11] — 2026-05-14
 
 ### Fixed

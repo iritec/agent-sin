@@ -968,6 +968,9 @@ async function handleMessage(state: BotState, message: DiscordMessage): Promise<
   if (await tryRunTodoSlashCommand(state, message, cleanText)) {
     return;
   }
+  if (await tryRunMemoSlashCommand(state, message, cleanText)) {
+    return;
+  }
   if (await tryRunModelSlashCommand(state, message, cleanText)) {
     return;
   }
@@ -1531,6 +1534,207 @@ async function tryRunTodoSlashCommand(
   return true;
 }
 
+export type MemoSlashParse =
+  | { kind: "help"; lines: string[] }
+  | { kind: "error"; lines: string[] }
+  | { kind: "run"; skillId: "memo-save" | "memo-list" | "memo-delete"; args: Record<string, unknown> };
+
+export function parseMemoSlashCommand(text: string): MemoSlashParse | null {
+  const trimmed = (text || "").trim();
+  if (trimmed !== "/memo" && !/^\/memo\s/.test(trimmed)) {
+    return null;
+  }
+  const rest = trimmed === "/memo" ? "" : trimmed.replace(/^\/memo\s+/, "").trim();
+  if (!rest || rest === "help" || rest === "--help" || rest === "-h") {
+    return { kind: "help", lines: memoSlashHelpLines() };
+  }
+  const firstSpace = rest.search(/\s/);
+  const sub = (firstSpace >= 0 ? rest.slice(0, firstSpace) : rest).toLowerCase();
+  const remainder = firstSpace >= 0 ? rest.slice(firstSpace + 1).trim() : "";
+
+  if (sub === "add" || sub === "save") {
+    if (!remainder) {
+      return { kind: "error", lines: [l("Usage: /memo add <text>", "使い方: /memo add <本文>")] };
+    }
+    return { kind: "run", skillId: "memo-save", args: { text: remainder } };
+  }
+
+  if (sub === "list" || sub === "ls") {
+    const parsed = parseMemoListArgs(remainder);
+    if (parsed.kind === "error") return parsed;
+    return { kind: "run", skillId: "memo-list", args: parsed.args };
+  }
+
+  if (sub === "delete" || sub === "remove" || sub === "del") {
+    const parsed = parseMemoDeleteArgs(remainder);
+    if (parsed.kind === "error") return parsed;
+    return { kind: "run", skillId: "memo-delete", args: parsed.args };
+  }
+
+  return {
+    kind: "error",
+    lines: [
+      l(`Unknown subcommand: ${sub}.`, `未対応のサブコマンドです: ${sub}。`),
+      ...memoSlashHelpLines(),
+    ],
+  };
+}
+
+function parseMemoListArgs(rest: string): { kind: "ok"; args: Record<string, unknown> } | { kind: "error"; lines: string[] } {
+  let body = rest.trim();
+  const dateFlag = extractValueFlag(body, "date");
+  body = dateFlag.text;
+  const limitFlag = extractValueFlag(body, "limit");
+  body = limitFlag.text;
+
+  const args: Record<string, unknown> = {};
+  const bodyParts = body.split(/\s+/).filter(Boolean);
+  if (dateFlag.value) {
+    args.date = dateFlag.value;
+  } else if (bodyParts.length > 0) {
+    args.date = bodyParts[0];
+    bodyParts.shift();
+  }
+  if (bodyParts.length > 0) {
+    return { kind: "error", lines: [l("Usage: /memo list [YYYY-MM-DD] [--limit 20]", "使い方: /memo list [YYYY-MM-DD] [--limit 20]")] };
+  }
+  if (limitFlag.value) {
+    const limit = parseIntegerOption(limitFlag.value);
+    if (!limit || limit < 1 || limit > 50) {
+      return { kind: "error", lines: [l("limit must be an integer from 1 to 50.", "limit は 1〜50 の整数で指定してください。")] };
+    }
+    args.limit = limit;
+  }
+  return { kind: "ok", args };
+}
+
+function parseMemoDeleteArgs(rest: string): { kind: "ok"; args: Record<string, unknown> } | { kind: "error"; lines: string[] } {
+  let target = rest.trim();
+  const dateFlag = extractValueFlag(target, "date");
+  target = dateFlag.text.trim();
+  const args: Record<string, unknown> = {};
+  if (dateFlag.value) args.date = dateFlag.value;
+  if (!target) {
+    return { kind: "error", lines: [l("Usage: /memo delete <index|text> [--date YYYY-MM-DD]", "使い方: /memo delete <番号|本文> [--date YYYY-MM-DD]")] };
+  }
+  const numeric = parseIntegerOption(target);
+  if (numeric && String(numeric) === target) {
+    args.index = numeric;
+  } else {
+    args.match = target;
+  }
+  return { kind: "ok", args };
+}
+
+function extractValueFlag(rest: string, name: string): { text: string; value?: string } {
+  const pattern = new RegExp(`(^|\\s)--${escapeRegExp(name)}\\s+(\\S+)(?=\\s|$)`);
+  const match = rest.match(pattern);
+  if (!match) return { text: rest.trim() };
+  const start = match.index ?? 0;
+  const before = rest.slice(0, start);
+  const after = rest.slice(start + match[0].length);
+  const text = [before, after].map((segment) => segment.trim()).filter(Boolean).join(" ").trim();
+  return { text, value: match[2] };
+}
+
+function parseIntegerOption(value: string): number | null {
+  if (!/^\d+$/.test(value.trim())) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function memoSlashHelpLines(): string[] {
+  return lLines(
+    [
+      "Memo commands:",
+      "/memo add <text> - save a memo",
+      "/memo list [YYYY-MM-DD] [--limit 20] - list memos",
+      "/memo delete <index|text> [--date YYYY-MM-DD] - delete a memo",
+    ],
+    [
+      "メモのショートカット:",
+      "/memo add <本文> - メモを追加",
+      "/memo list [YYYY-MM-DD] [--limit 20] - メモを一覧表示",
+      "/memo delete <番号|本文> [--date YYYY-MM-DD] - メモを削除",
+    ],
+  );
+}
+
+async function tryRunMemoSlashCommand(
+  state: BotState,
+  message: DiscordMessage,
+  cleanText: string,
+): Promise<boolean> {
+  const parsed = await withLocale(inferLocaleFromText(cleanText), () =>
+    Promise.resolve(parseMemoSlashCommand(cleanText)),
+  );
+  if (!parsed) return false;
+
+  await withLocale(inferLocaleFromText(cleanText), async () => {
+    const status = createStatusReactor(state, message.channel_id, message.id);
+    await status.set("received");
+
+    if (parsed.kind === "help") {
+      await status.set("done");
+      await sendChannelMessage(state, message.channel_id, parsed.lines.join("\n"));
+      return;
+    }
+    if (parsed.kind === "error") {
+      await status.set("error");
+      await sendChannelMessage(state, message.channel_id, parsed.lines.join("\n"));
+      return;
+    }
+
+    await status.set("tool");
+    try {
+      const response = await runSkill(state.config, parsed.skillId, parsed.args);
+      const display =
+        response.result.summary ||
+        response.result.title ||
+        l("(no response)", "（応答なし）");
+      await status.set(response.result.status === "ok" ? "done" : "error");
+      await sendChannelMessage(state, message.channel_id, display);
+      await appendEventLog(state.config, {
+        level: "info",
+        source: "discord",
+        event: "memo_slash_ran",
+        message: response.result.title || undefined,
+        details: {
+          skill_id: parsed.skillId,
+          status: response.result.status,
+          channel_id: message.channel_id,
+        },
+      });
+    } catch (error) {
+      await status.set("error");
+      const detail =
+        error instanceof SkillRunError
+          ? error.originalMessage
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      await sendChannelMessage(
+        state,
+        message.channel_id,
+        l(`Error: ${detail}`, `エラー: ${detail}`),
+      );
+      await appendEventLog(state.config, {
+        level: "error",
+        source: "discord",
+        event: "memo_slash_failed",
+        message: detail.slice(0, 200),
+        details: { skill_id: parsed.skillId, channel_id: message.channel_id },
+      });
+    }
+  });
+
+  return true;
+}
+
 export type ModelSlashParse =
   | { kind: "help"; lines: string[] }
   | { kind: "list" }
@@ -1766,6 +1970,85 @@ const TODO_SLASH_COMMAND_DEFINITION = {
   ],
 } as const;
 
+const MEMO_SLASH_COMMAND_DEFINITION = {
+  name: "memo",
+  description: "Memo shortcut commands",
+  description_localizations: { ja: "メモのショートカット" },
+  type: 1,
+  dm_permission: true,
+  options: [
+    {
+      type: 1,
+      name: "add",
+      description: "Save a memo",
+      description_localizations: { ja: "メモを追加" },
+      options: [
+        {
+          type: 3,
+          name: "text",
+          description: "Memo text",
+          description_localizations: { ja: "メモ本文" },
+          required: true,
+        },
+      ],
+    },
+    {
+      type: 1,
+      name: "list",
+      description: "List memos",
+      description_localizations: { ja: "メモを一覧表示" },
+      options: [
+        {
+          type: 3,
+          name: "date",
+          description: "Target date (YYYY-MM-DD, default today)",
+          description_localizations: { ja: "対象日（YYYY-MM-DD、省略時は今日）" },
+          required: false,
+        },
+        {
+          type: 4,
+          name: "limit",
+          description: "Maximum number of memos",
+          description_localizations: { ja: "表示する最大件数" },
+          required: false,
+          min_value: 1,
+          max_value: 50,
+        },
+      ],
+    },
+    {
+      type: 1,
+      name: "delete",
+      description: "Delete a memo",
+      description_localizations: { ja: "メモを削除" },
+      options: [
+        {
+          type: 4,
+          name: "index",
+          description: "Memo number from /memo list",
+          description_localizations: { ja: "/memo list の番号" },
+          required: false,
+          min_value: 1,
+        },
+        {
+          type: 3,
+          name: "match",
+          description: "Text contained in the memo",
+          description_localizations: { ja: "メモに含まれる文字" },
+          required: false,
+        },
+        {
+          type: 3,
+          name: "date",
+          description: "Target date (YYYY-MM-DD, default today)",
+          description_localizations: { ja: "対象日（YYYY-MM-DD、省略時は今日）" },
+          required: false,
+        },
+      ],
+    },
+  ],
+} as const;
+
 const MODEL_SLASH_COMMAND_DEFINITION = {
   name: "model",
   description: "Show or switch the chat model",
@@ -1786,6 +2069,7 @@ const MODEL_SLASH_COMMAND_DEFINITION = {
 
 const BUILTIN_SLASH_COMMAND_DEFINITIONS: ReadonlyArray<{ name: string } & Record<string, unknown>> = [
   TODO_SLASH_COMMAND_DEFINITION,
+  MEMO_SLASH_COMMAND_DEFINITION,
   MODEL_SLASH_COMMAND_DEFINITION,
 ];
 
@@ -1935,6 +2219,12 @@ async function handleInteraction(state: BotState, interaction: DiscordInteractio
     }
     if (interaction.type === 2) {
       await handleTodoInteraction(state, interaction);
+    }
+    return;
+  }
+  if (name === "memo") {
+    if (interaction.type === 2) {
+      await handleMemoInteraction(state, interaction);
     }
     return;
   }
@@ -2139,6 +2429,110 @@ async function handleTodoInteraction(state: BotState, interaction: DiscordIntera
         level: "error",
         source: "discord",
         event: "todo_slash_failed",
+        message: detail.slice(0, 200),
+        details: { skill_id: skillId, kind: "interaction" },
+      });
+    }
+  });
+}
+
+async function handleMemoInteraction(state: BotState, interaction: DiscordInteraction): Promise<void> {
+  const userId = await ensureInteractionUserAllowed(state, interaction, "memo");
+  if (!userId) return;
+
+  const sub = interaction.data?.options?.[0];
+  const subName = sub?.name || "";
+  const optMap = new Map<string, unknown>();
+  for (const opt of sub?.options || []) {
+    optMap.set(opt.name, opt.value);
+  }
+
+  await withLocale(inferLocaleFromText(extractInteractionLocaleHint(sub)), async () => {
+    let skillId: "memo-save" | "memo-list" | "memo-delete";
+    let args: Record<string, unknown>;
+
+    if (subName === "add") {
+      const text = String(optMap.get("text") || "").trim();
+      if (!text) {
+        await respondInteraction(state, interaction, {
+          content: l("Memo text is required.", "メモ本文を指定してください。"),
+          ephemeral: true,
+        });
+        return;
+      }
+      skillId = "memo-save";
+      args = { text };
+    } else if (subName === "list") {
+      skillId = "memo-list";
+      args = {};
+      const date = String(optMap.get("date") || "").trim();
+      if (date) args.date = date;
+      const limit = optMap.get("limit");
+      if (typeof limit === "number") args.limit = limit;
+    } else if (subName === "delete") {
+      skillId = "memo-delete";
+      args = {};
+      const date = String(optMap.get("date") || "").trim();
+      const match = String(optMap.get("match") || "").trim();
+      const index = optMap.get("index");
+      if (date) args.date = date;
+      if (typeof index === "number") args.index = index;
+      if (match) args.match = match;
+      if (args.index === undefined && !args.match) {
+        await respondInteraction(state, interaction, {
+          content: l("Specify a memo number or matching text.", "番号か一致する本文を指定してください。"),
+          ephemeral: true,
+        });
+        return;
+      }
+    } else {
+      await respondInteraction(state, interaction, {
+        content: l(
+          `Unknown subcommand: ${subName || "(none)"}.`,
+          `未対応のサブコマンドです: ${subName || "(なし)"}。`,
+        ),
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const ack = await deferInteraction(state, interaction);
+    if (!ack) return;
+
+    try {
+      const response = await runSkill(state.config, skillId, args);
+      const display =
+        response.result.summary ||
+        response.result.title ||
+        l("(no response)", "（応答なし）");
+      await editInteractionOriginal(state, interaction, display);
+      await appendEventLog(state.config, {
+        level: "info",
+        source: "discord",
+        event: "memo_slash_ran",
+        message: response.result.title || undefined,
+        details: {
+          skill_id: skillId,
+          status: response.result.status,
+          kind: "interaction",
+        },
+      });
+    } catch (error) {
+      const detail =
+        error instanceof SkillRunError
+          ? error.originalMessage
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      await editInteractionOriginal(
+        state,
+        interaction,
+        l(`Error: ${detail}`, `エラー: ${detail}`),
+      );
+      await appendEventLog(state.config, {
+        level: "error",
+        source: "discord",
+        event: "memo_slash_failed",
         message: detail.slice(0, 200),
         details: { skill_id: skillId, kind: "interaction" },
       });

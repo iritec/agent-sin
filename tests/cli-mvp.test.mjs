@@ -460,6 +460,40 @@ test("chat invokes a registered skill when the model emits a skill-call block", 
   assert.doesNotMatch(chat.stdout, /saved:/);
 });
 
+test("chat invokes a skill when the skill-call label is split onto its own line", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "agent-sin-"));
+  assert.equal(run(["setup"], home).status, 0);
+
+  const firstResponse = '```\nskill-call\n{"id":"memo-save","args":{"text":"split label toolcall"}}\n```';
+  const secondResponse = "Saved.";
+  const chat = runWithFakeProvider(
+    ["chat", "save this memo: split label toolcall"],
+    home,
+    `${firstResponse}|||${secondResponse}`,
+    { AGENT_SIN_LOCALE: "en" },
+  );
+  assert.equal(chat.status, 0, chat.stderr);
+  assert.match(chat.stdout, /Calling memo-save/);
+  assert.match(chat.stdout, /Memo saved/);
+  assert.doesNotMatch(chat.stdout, /skill-call/);
+});
+
+test("chat runs exact read-only skill triggers without waiting for the model to emit a skill-call", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "agent-sin-"));
+  assert.equal(run(["setup"], home).status, 0);
+
+  const chat = runWithFakeProvider(
+    ["chat", "todolist"],
+    home,
+    "[fake model should not be visible]",
+    { AGENT_SIN_LOCALE: "en" },
+  );
+  assert.equal(chat.status, 0, chat.stderr);
+  assert.match(chat.stdout, /There are no open ToDos|No ToDos/);
+  assert.doesNotMatch(chat.stdout, /fake model should not be visible/);
+  assert.doesNotMatch(chat.stdout, /skill-call/);
+});
+
 test("Japanese chat turn localizes framework text and skill results even with English config", () => {
   const home = mkdtempSync(path.join(tmpdir(), "agent-sin-"));
   const setup = runWithFakeProvider(["setup"], home, undefined, { AGENT_SIN_LOCALE: "en" });

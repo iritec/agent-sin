@@ -7,7 +7,9 @@ import {
   shouldRespond,
   chunkMessage,
   parseTodoSlashCommand,
+  parseMemoSlashCommand,
   parseModelSlashCommand,
+  composeSlashCommandDefinitions,
   manifestToSlashDefinition,
 } from "../dist/discord/bot.js";
 
@@ -157,6 +159,53 @@ test("parseTodoSlashCommand: unknown subcommand reports error with help", () => 
   assert.ok(parsed.lines.length >= 2);
 });
 
+test("parseMemoSlashCommand: returns null for non-memo text", () => {
+  assert.equal(parseMemoSlashCommand("hello"), null);
+  assert.equal(parseMemoSlashCommand("/memos"), null);
+  assert.equal(parseMemoSlashCommand("/memofoo"), null);
+});
+
+test("parseMemoSlashCommand: bare /memo shows help", () => {
+  const parsed = parseMemoSlashCommand("/memo");
+  assert.equal(parsed?.kind, "help");
+  assert.ok(parsed.lines.length > 0);
+});
+
+test("parseMemoSlashCommand: /memo add parses memo text", () => {
+  const parsed = parseMemoSlashCommand("/memo add Buy milk");
+  assert.equal(parsed?.kind, "run");
+  assert.equal(parsed.skillId, "memo-save");
+  assert.deepEqual(parsed.args, { text: "Buy milk" });
+});
+
+test("parseMemoSlashCommand: /memo list parses date and limit", () => {
+  const def = parseMemoSlashCommand("/memo list");
+  assert.equal(def?.kind, "run");
+  assert.equal(def.skillId, "memo-list");
+  assert.deepEqual(def.args, {});
+
+  const withDate = parseMemoSlashCommand("/memo list 2026-05-17 --limit 5");
+  assert.equal(withDate?.kind, "run");
+  assert.deepEqual(withDate.args, { date: "2026-05-17", limit: 5 });
+
+  const bad = parseMemoSlashCommand("/memo list --limit 99");
+  assert.equal(bad?.kind, "error");
+});
+
+test("parseMemoSlashCommand: /memo delete parses index or matching text", () => {
+  const byIndex = parseMemoSlashCommand("/memo delete 2 --date 2026-05-17");
+  assert.equal(byIndex?.kind, "run");
+  assert.equal(byIndex.skillId, "memo-delete");
+  assert.deepEqual(byIndex.args, { date: "2026-05-17", index: 2 });
+
+  const byText = parseMemoSlashCommand("/memo delete Buy milk");
+  assert.equal(byText?.kind, "run");
+  assert.deepEqual(byText.args, { match: "Buy milk" });
+
+  const missing = parseMemoSlashCommand("/memo delete");
+  assert.equal(missing?.kind, "error");
+});
+
 test("parseModelSlashCommand: returns null for non-model text", () => {
   assert.equal(parseModelSlashCommand("hello"), null);
   assert.equal(parseModelSlashCommand("/models"), null);
@@ -273,4 +322,14 @@ test("manifestToSlashDefinition: falls back to manifest description when slash d
   });
   assert.equal(definition.description, "Manifest level description");
   assert.equal(definition.options, undefined);
+});
+
+test("composeSlashCommandDefinitions: includes builtin memo command", async () => {
+  const definitions = await composeSlashCommandDefinitions({
+    skills_dir: "/tmp/agent-sin-empty-skills",
+  });
+  const memo = definitions.find((definition) => definition.name === "memo");
+  assert.ok(memo, "expected /memo command");
+  const subcommands = memo.options.map((option) => option.name);
+  assert.deepEqual(subcommands, ["add", "list", "delete"]);
 });

@@ -67,8 +67,9 @@ export interface ChatRespondOptions {
 
 export const HISTORY_LIMIT = 20;
 export const TOOL_CALL_MAX_ITERATIONS = 3;
-const SKILL_CALL_PATTERN = /```skill-call\s*\n([\s\S]*?)\n```/g;
-const BUILD_SUGGESTION_PATTERN = /```agent-sin-build-suggestion\s*\n([\s\S]*?)\n```/g;
+const SKILL_CALL_BLOCK = "skill-call";
+const BUILD_SUGGESTION_BLOCK = "agent-sin-build-suggestion";
+const INTERNAL_BLOCK_NAMES = [SKILL_CALL_BLOCK, BUILD_SUGGESTION_BLOCK];
 const REPAIR_FAILURE_PATTERN =
   /(traceback|exception|runtimeerror|syntaxerror|typeerror|nameerror|valueerror|importerror|module not found|exited with code|did not return valid json|handler not found|entry file not found|実行時|例外|エラー|失敗|読み取れません|できませんでした)/i;
 const USER_FIXABLE_FAILURE_PATTERN =
@@ -98,6 +99,8 @@ export async function chatRespond(
   const profileMemory = await readProfileMemoryForPrompt(config);
   const systemPrompt = buildSystemPrompt(tools, options.preferredSkillId, profileMemory);
   const modelDisplay = await resolveDisplayModelName(config);
+  const directSkillCall = resolveDirectSkillCall(tools, userText, options.preferredSkillId);
+  let queuedAssistantText = directSkillCall ? formatSkillCallBlock(directSkillCall) : null;
 
   appendHistory(history, { role: "user", content: userText });
   const userTurnIndex = history.length - 1;
@@ -131,86 +134,91 @@ export async function chatRespond(
   for (let iteration = 0; iteration < TOOL_CALL_MAX_ITERATIONS; iteration += 1) {
     let assistantText: string;
     let buildSuggestion: ChatBuildSuggestion | null = null;
-    const baseLabel = `${modelDisplay}: ${t("spinner.thinking")}`;
-    if (spinner) spinner.start(baseLabel);
-    emitProgress({ kind: "thinking", iteration });
-    const spinnerProgress = spinner ? makeSpinnerProgress(spinner, baseLabel) : null;
-    const providerProgress =
-      spinnerProgress || options.onAiProgress
-        ? (event: AiProgressEvent) => {
-            if (spinnerProgress) {
-              spinnerProgress(event);
+    if (queuedAssistantText) {
+      assistantText = queuedAssistantText;
+      queuedAssistantText = null;
+    } else {
+      const baseLabel = `${modelDisplay}: ${t("spinner.thinking")}`;
+      if (spinner) spinner.start(baseLabel);
+      emitProgress({ kind: "thinking", iteration });
+      const spinnerProgress = spinner ? makeSpinnerProgress(spinner, baseLabel) : null;
+      const providerProgress =
+        spinnerProgress || options.onAiProgress
+          ? (event: AiProgressEvent) => {
+              if (spinnerProgress) {
+                spinnerProgress(event);
+              }
+              if (options.onAiProgress) {
+                options.onAiProgress(event);
+              }
             }
-            if (options.onAiProgress) {
-              options.onAiProgress(event);
-            }
-          }
-        : undefined;
-    try {
-      const messages: AiMessage[] = [
-        { role: "system", content: systemPrompt },
-        ...toAiMessages(history, userImages.length > 0 ? { index: userTurnIndex, images: userImages } : undefined),
-      ];
-      const provider = getAiProvider();
-      const response = await provider(config, {
-        model_id: config.chat_model_id,
-        messages,
-        onProgress: providerProgress,
-      });
-      buildSuggestion = parseBuildSuggestion(response.text);
-      assistantText = stripBuildSuggestions(response.text);
-      if (shouldRetryEmptyAssistantReply(assistantText, buildSuggestion)) {
-        await appendEventLog(config, {
-          level: "warn",
-          source: eventSource,
-          event: "empty_model_reply_retry",
-          message: "model returned an empty chat reply; retrying once",
-          details: { model_id: config.chat_model_id, iteration },
+          : undefined;
+      try {
+        const messages: AiMessage[] = [
+          { role: "system", content: systemPrompt },
+          ...toAiMessages(history, userImages.length > 0 ? { index: userTurnIndex, images: userImages } : undefined),
+        ];
+        const provider = getAiProvider();
+        const response = await provider(config, {
+          model_id: config.chat_model_id,
+          messages,
+          onProgress: providerProgress,
         });
-        try {
-          const retryResponse = await provider(config, {
-            model_id: config.chat_model_id,
-            messages: [
-              ...messages,
-              { role: "system", content: emptyReplyRetryPrompt() },
-            ],
-            onProgress: providerProgress,
-          });
-          buildSuggestion = parseBuildSuggestion(retryResponse.text);
-          assistantText = stripBuildSuggestions(retryResponse.text);
-        } catch (retryError) {
-          const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+        buildSuggestion = parseBuildSuggestion(response.text);
+        assistantText = stripBuildSuggestions(response.text);
+        if (shouldRetryEmptyAssistantReply(assistantText, buildSuggestion)) {
           await appendEventLog(config, {
             level: "warn",
             source: eventSource,
-            event: "empty_model_reply_retry_failed",
-            message: retryMessage,
+            event: "empty_model_reply_retry",
+            message: "model returned an empty chat reply; retrying once",
             details: { model_id: config.chat_model_id, iteration },
           });
+          try {
+            const retryResponse = await provider(config, {
+              model_id: config.chat_model_id,
+              messages: [
+                ...messages,
+                { role: "system", content: emptyReplyRetryPrompt() },
+              ],
+              onProgress: providerProgress,
+            });
+            buildSuggestion = parseBuildSuggestion(retryResponse.text);
+            assistantText = stripBuildSuggestions(retryResponse.text);
+          } catch (retryError) {
+            const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+            await appendEventLog(config, {
+              level: "warn",
+              source: eventSource,
+              event: "empty_model_reply_retry_failed",
+              message: retryMessage,
+              details: { model_id: config.chat_model_id, iteration },
+            });
+          }
         }
-      }
-      if (buildSuggestion && options.onBuildSuggestion) {
-        try {
-          options.onBuildSuggestion(buildSuggestion);
-        } catch {
-          // Build suggestions are optional metadata; never break chat.
+        if (buildSuggestion && options.onBuildSuggestion) {
+          try {
+            options.onBuildSuggestion(buildSuggestion);
+          } catch {
+            // Build suggestions are optional metadata; never break chat.
+          }
         }
+      } catch (error) {
+        if (spinner) spinner.stop();
+        const message = error instanceof Error ? error.message : String(error);
+        history.pop();
+        await appendEventLog(config, {
+          level: "error",
+          source: eventSource,
+          event: "model_failed",
+          message,
+          details: { model_id: config.chat_model_id },
+        });
+        emitProgress({ kind: "model_failed", message });
+        return [t("chat.model_unreachable", { model: config.chat_model_id, message })];
       }
-    } catch (error) {
       if (spinner) spinner.stop();
-      const message = error instanceof Error ? error.message : String(error);
-      history.pop();
-      await appendEventLog(config, {
-        level: "error",
-        source: eventSource,
-        event: "model_failed",
-        message,
-        details: { model_id: config.chat_model_id },
-      });
-      emitProgress({ kind: "model_failed", message });
-      return [t("chat.model_unreachable", { model: config.chat_model_id, message })];
     }
-    if (spinner) spinner.stop();
 
     const calls = parseSkillCalls(assistantText);
     const narrative = stripSkillCalls(assistantText).trim();
@@ -853,19 +861,26 @@ function stableStringify(value: unknown): string {
 
 export function parseSkillCalls(text: string): SkillCall[] {
   const calls: SkillCall[] = [];
-  SKILL_CALL_PATTERN.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = SKILL_CALL_PATTERN.exec(text)) !== null) {
+  for (const block of findInternalControlBlocks(text, [SKILL_CALL_BLOCK])) {
     try {
-      const parsed = JSON.parse(match[1]) as { id?: unknown; args?: unknown };
-      if (typeof parsed.id !== "string") {
+      const parsed = JSON.parse(block.payload) as {
+        id?: unknown;
+        skill_id?: unknown;
+        skillId?: unknown;
+        args?: unknown;
+        arguments?: unknown;
+        input?: unknown;
+      };
+      const id = parsed.id ?? parsed.skill_id ?? parsed.skillId;
+      if (typeof id !== "string") {
         continue;
       }
+      const rawArgs = parsed.args ?? parsed.arguments ?? parsed.input;
       const args =
-        parsed.args && typeof parsed.args === "object" && !Array.isArray(parsed.args)
-          ? (parsed.args as Record<string, unknown>)
+        rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)
+          ? (rawArgs as Record<string, unknown>)
           : {};
-      calls.push({ id: parsed.id, args });
+      calls.push({ id, args });
     } catch {
       continue;
     }
@@ -874,39 +889,315 @@ export function parseSkillCalls(text: string): SkillCall[] {
 }
 
 export function stripSkillCalls(text: string): string {
-  return text.replace(SKILL_CALL_PATTERN, "").trim();
+  return removeInternalControlBlocks(text, [SKILL_CALL_BLOCK]).trim();
 }
 
 export function extractSkillCallBlocks(text: string): string {
-  const matches = text.match(SKILL_CALL_PATTERN);
-  return matches ? matches.join("\n") : "";
+  const blocks = findInternalControlBlocks(text, [SKILL_CALL_BLOCK]);
+  return blocks.map((block) => text.slice(block.start, block.end).trim()).join("\n");
 }
 
 export function parseBuildSuggestion(text: string): ChatBuildSuggestion | null {
-  BUILD_SUGGESTION_PATTERN.lastIndex = 0;
-  const match = BUILD_SUGGESTION_PATTERN.exec(text);
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(match[1]) as {
-      type?: unknown;
-      skill_id?: unknown;
-      reason?: unknown;
-    };
-    const type = parsed.type === "edit" ? "edit" : "create";
-    const skillId = sanitizeSuggestedSkillId(String(parsed.skill_id || ""));
-    if (!skillId) return null;
-    return {
-      type,
-      skill_id: skillId,
-      reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 240) : undefined,
-    };
-  } catch {
-    return null;
+  for (const block of findInternalControlBlocks(text, [BUILD_SUGGESTION_BLOCK])) {
+    try {
+      const parsed = JSON.parse(block.payload) as {
+        type?: unknown;
+        skill_id?: unknown;
+        reason?: unknown;
+      };
+      const type = parsed.type === "edit" ? "edit" : "create";
+      const skillId = sanitizeSuggestedSkillId(String(parsed.skill_id || ""));
+      if (!skillId) continue;
+      return {
+        type,
+        skill_id: skillId,
+        reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 240) : undefined,
+      };
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 export function stripBuildSuggestions(text: string): string {
-  return text.replace(BUILD_SUGGESTION_PATTERN, "").trim();
+  return removeInternalControlBlocks(text, [BUILD_SUGGESTION_BLOCK]).trim();
+}
+
+export function stripInternalControlBlocks(text: string): string {
+  return removeInternalControlBlocks(text, INTERNAL_BLOCK_NAMES)
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+interface InternalControlBlock {
+  name: string;
+  payload: string;
+  start: number;
+  end: number;
+}
+
+interface TextLine {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function findInternalControlBlocks(text: string, names: string[]): InternalControlBlock[] {
+  const wanted = new Set(names.map(normalizeInternalBlockName));
+  const lines = splitLinesWithOffsets(text);
+  const blocks: InternalControlBlock[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const fence = line.text.match(/^\s*(`{3,}|~{3,})\s*([A-Za-z][A-Za-z0-9_-]*)?\s*$/);
+    if (fence) {
+      let name = normalizeInternalBlockName(fence[2] || "");
+      let payloadStartLine = index + 1;
+      if (!name && payloadStartLine < lines.length) {
+        const splitName = normalizeInternalBlockName(lines[payloadStartLine].text.trim());
+        if (wanted.has(splitName)) {
+          name = splitName;
+          payloadStartLine += 1;
+        }
+      }
+      if (wanted.has(name)) {
+        const closeLine = findClosingFenceLine(lines, payloadStartLine, fence[1]);
+        const payloadStart = payloadStartLine < lines.length ? lines[payloadStartLine].start : line.end;
+        const payloadEnd = closeLine >= 0 ? lines[closeLine].start : text.length;
+        const end = closeLine >= 0 ? lines[closeLine].end : text.length;
+        blocks.push({
+          name,
+          payload: text.slice(payloadStart, payloadEnd).trim(),
+          start: line.start,
+          end,
+        });
+        index = closeLine >= 0 ? closeLine : lines.length;
+        continue;
+      }
+    }
+
+    const bareName = normalizeInternalBlockName(line.text.trim());
+    if (!wanted.has(bareName)) {
+      continue;
+    }
+    const payloadLine = nextNonEmptyLine(lines, index + 1);
+    if (payloadLine < 0) {
+      continue;
+    }
+    const jsonStart = firstNonWhitespaceIndex(text, lines[payloadLine].start);
+    if (jsonStart < 0 || text[jsonStart] !== "{") {
+      continue;
+    }
+    const jsonEnd = findJsonObjectEnd(text, jsonStart);
+    if (!jsonEnd) {
+      continue;
+    }
+    blocks.push({
+      name: bareName,
+      payload: text.slice(jsonStart, jsonEnd).trim(),
+      start: line.start,
+      end: consumeTrailingLineWhitespace(text, jsonEnd),
+    });
+    index = lineIndexForOffset(lines, jsonEnd);
+  }
+  return mergeInternalBlocks(blocks);
+}
+
+function removeInternalControlBlocks(text: string, names: string[]): string {
+  const blocks = findInternalControlBlocks(text, names);
+  if (blocks.length === 0) {
+    return text;
+  }
+  let out = "";
+  let cursor = 0;
+  for (const block of blocks) {
+    if (block.start < cursor) {
+      continue;
+    }
+    out += text.slice(cursor, block.start);
+    cursor = block.end;
+  }
+  out += text.slice(cursor);
+  return out;
+}
+
+function splitLinesWithOffsets(text: string): TextLine[] {
+  const lines: TextLine[] = [];
+  let start = 0;
+  while (start < text.length) {
+    const newline = text.indexOf("\n", start);
+    const end = newline >= 0 ? newline + 1 : text.length;
+    const contentEnd = newline >= 0 ? newline : end;
+    const raw = text.slice(start, contentEnd).replace(/\r$/, "");
+    lines.push({ text: raw, start, end });
+    start = end;
+  }
+  if (text.length === 0) {
+    lines.push({ text: "", start: 0, end: 0 });
+  }
+  return lines;
+}
+
+function findClosingFenceLine(lines: TextLine[], startLine: number, openingFence: string): number {
+  const char = openingFence[0];
+  const minLength = openingFence.length;
+  for (let index = startLine; index < lines.length; index += 1) {
+    const trimmed = lines[index].text.trim();
+    if (trimmed.length < minLength) {
+      continue;
+    }
+    if ([...trimmed].every((item) => item === char)) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function nextNonEmptyLine(lines: TextLine[], startLine: number): number {
+  for (let index = startLine; index < lines.length; index += 1) {
+    if (lines[index].text.trim()) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function firstNonWhitespaceIndex(text: string, start: number): number {
+  for (let index = start; index < text.length; index += 1) {
+    if (!/\s/.test(text[index])) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function findJsonObjectEnd(text: string, start: number): number | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+  return null;
+}
+
+function consumeTrailingLineWhitespace(text: string, start: number): number {
+  let index = start;
+  while (index < text.length && (text[index] === " " || text[index] === "\t" || text[index] === "\r")) {
+    index += 1;
+  }
+  if (text[index] === "\n") {
+    index += 1;
+  }
+  return index;
+}
+
+function lineIndexForOffset(lines: TextLine[], offset: number): number {
+  for (let index = 0; index < lines.length; index += 1) {
+    if (offset <= lines[index].end) {
+      return index;
+    }
+  }
+  return lines.length - 1;
+}
+
+function mergeInternalBlocks(blocks: InternalControlBlock[]): InternalControlBlock[] {
+  const sorted = blocks.sort((a, b) => a.start - b.start || b.end - a.end);
+  const merged: InternalControlBlock[] = [];
+  for (const block of sorted) {
+    const previous = merged[merged.length - 1];
+    if (previous && block.start < previous.end) {
+      continue;
+    }
+    merged.push(block);
+  }
+  return merged;
+}
+
+function normalizeInternalBlockName(value: string): string {
+  return value.trim().toLowerCase().replaceAll("_", "-");
+}
+
+function formatSkillCallBlock(call: SkillCall): string {
+  return ["```skill-call", safeJson({ id: call.id, args: call.args }), "```"].join("\n");
+}
+
+function resolveDirectSkillCall(
+  skills: SkillManifest[],
+  userText: string,
+  preferredSkillId?: string,
+): SkillCall | null {
+  const normalizedText = normalizeSkillTrigger(userText);
+  if (!normalizedText) {
+    return null;
+  }
+  const candidates = skills
+    .filter((skill) => skill.output_mode === "raw" && !skill.side_effect && hasNoRequiredArgs(skill))
+    .map((skill) => ({
+      skill,
+      phrases: directSkillPhrases(skill),
+    }))
+    .filter((entry) =>
+      entry.phrases.some((phrase) => normalizeSkillTrigger(phrase) === normalizedText),
+    );
+  if (preferredSkillId) {
+    const preferred = candidates.find((entry) => entry.skill.id === preferredSkillId);
+    if (preferred) {
+      return { id: preferred.skill.id, args: {} };
+    }
+  }
+  if (candidates.length !== 1) {
+    return null;
+  }
+  return { id: candidates[0].skill.id, args: {} };
+}
+
+function directSkillPhrases(skill: SkillManifest): string[] {
+  return [
+    skill.id,
+    skill.name,
+    skill.invocation?.command || "",
+    ...(skill.invocation?.phrases || []),
+  ].filter((phrase) => phrase.trim().length > 0);
+}
+
+function hasNoRequiredArgs(skill: SkillManifest): boolean {
+  const required = skill.input?.schema?.required;
+  return !Array.isArray(required) || required.length === 0;
+}
+
+function normalizeSkillTrigger(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/^\/+/, "")
+    .replace(/(?:を|の)?(?:一覧|リスト)?(?:出して|表示して|見せて|教えて|ください|お願い|して)$/u, "")
+    .replace(/[\s_\-./:：・、。!！?？"'`]+/g, "")
+    .trim();
 }
 
 function sanitizeSuggestedSkillId(raw: string): string {

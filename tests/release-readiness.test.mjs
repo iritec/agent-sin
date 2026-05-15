@@ -248,6 +248,7 @@ test("builtin skills cover memo, semantic search, profile, schedule, and todo fl
   const expected = [
     "memo-delete",
     "memo-index",
+    "memo-list",
     "memo-save",
     "memo-search",
     "memo-vector-search",
@@ -274,6 +275,7 @@ test("builtin skills cover memo, semantic search, profile, schedule, and todo fl
   }
 
   assertOk(run(["run", "memo-save", "--text", "意味検索テストの散歩メモ"], home), "memo-save");
+  assertOk(run(["run", "memo-list"], home), "memo-list");
   assertOk(run(["run", "memo-search", "--query", "散歩"], home), "memo-search");
   assertOk(run(["run", "memo-index"], home, chromaEnv), "memo-index");
   const vector = run(["run", "memo-vector-search", "--query", "散歩", "--limit", "1"], home, chromaEnv);

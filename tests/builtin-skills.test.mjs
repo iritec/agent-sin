@@ -353,6 +353,11 @@ test("memo-delete removes a matching line from today's note", () => {
   run(["run", "memo-save", "--text", "MeMo-One alpha"], home);
   run(["run", "memo-save", "--text", "MeMo-Two beta"], home);
 
+  const list = run(["run", "memo-list"], home);
+  assert.equal(list.status, 0, list.stderr);
+  assert.match(list.stdout, /MeMo-One/);
+  assert.match(list.stdout, /MeMo-Two/);
+
   const now = new Date();
   const yyyy = String(now.getFullYear());
   const mm = String(now.getMonth() + 1).padStart(2, "0");

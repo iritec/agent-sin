@@ -5,6 +5,7 @@ import { appendEventLog } from "../core/logger.js";
 import {
   type ChatProgressEvent,
   type ChatTurn,
+  stripInternalControlBlocks,
 } from "../core/chat-engine.js";
 import type { AiImagePart, AiProgressEvent, AiProgressHandler } from "../core/ai-provider.js";
 import {
@@ -766,32 +767,10 @@ function helpText(): string {
     [
       "Welcome to the Agent-Sin Telegram bot.",
       "It responds in DMs, mentions, and replies to the bot. Registered skills are called automatically when useful.",
-      "",
-      "Commands:",
-      "  /help                         Show this help",
-      "  /reset                        Reset this chat history",
-      "  /progress quiet|detail         Toggle progress messages",
-      "  /back                         Return from build/edit mode to chat mode",
-      "  /build [skill-id] [request]    Create a new skill",
-      '  /build chat <id> "message"    Revise through conversation',
-      "  /build list                   List drafts",
-      "  /build test <id>              Test a draft",
-      "  /build status <id>            Show status",
     ],
     [
       "Agent-Sin Telegram bot へようこそ。",
       "DM、メンション、bot への返信に反応します。登録済みスキルも自動で呼び出されます。",
-      "",
-      "コマンド:",
-      "  /help                         この使い方を表示",
-      "  /reset                        このチャットの会話履歴をリセット",
-      "  /progress quiet|detail         進捗通知の量を切り替え",
-      "  /back                         build / edit モードから chat モードに戻る",
-      "  /build [skill-id] [要望]      新規スキルを作成",
-      '  /build chat <id> "メッセージ" 会話しながら修正',
-      "  /build list                   作成中の一覧",
-      "  /build test <id>              動作確認",
-      "  /build status <id>            状態を見る",
     ],
   ).join("\n");
 }
@@ -1320,7 +1299,7 @@ function telegramDraftIntervalMs(): number {
 }
 
 function cleanDraftText(text: string): string {
-  const cleaned = text
+  const cleaned = stripInternalControlBlocks(text)
     .replace(/```/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
@@ -1366,7 +1345,11 @@ async function sendTelegramMessage(
   content: string,
   options: TelegramSendOptions = {},
 ): Promise<void> {
-  const chunks = chunkTelegramMessage(content);
+  const sanitized = stripInternalControlBlocks(content);
+  if (!sanitized.trim()) {
+    return;
+  }
+  const chunks = chunkTelegramMessage(sanitized);
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
     const payload = telegramSendPayload(

@@ -1,0 +1,57 @@
+# Builtin: memo-list
+# memo-save が書き込むデイリーノートのメモ行を一覧表示する。
+
+id: memo-list
+name: Memo List
+name_i18n:
+  en: Memo List
+  ja: メモ一覧
+description: 指定日のMarkdownメモを一覧表示する
+description_i18n:
+  en: List Markdown memos for a date
+  ja: 指定日のMarkdownメモを一覧表示する
+runtime: python
+output_mode: raw
+
+invocation:
+  command: memo.list
+  phrases:
+    - メモ一覧
+    - メモを見せて
+    - 今日のメモ
+  phrases_i18n:
+    en:
+      - list memos
+      - show memos
+      - today's memos
+    ja:
+      - メモ一覧
+      - メモを見せて
+      - 今日のメモ
+
+input:
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      date:
+        type: string
+        description: "対象日 (YYYY-MM-DD)。省略時は今日"
+        description_i18n:
+          en: "Target date (YYYY-MM-DD). Defaults to today"
+          ja: "対象日 (YYYY-MM-DD)。省略時は今日"
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+        description: 表示する最大件数
+        description_i18n:
+          en: Maximum number of memos to show
+          ja: 表示する最大件数
+    required: []
+
+memory:
+  namespace: memo
+  read: true
+  write: false
